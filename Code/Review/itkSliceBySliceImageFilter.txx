@@ -158,29 +158,25 @@ SliceBySliceImageFilter<TInputImage, TOutputImage, TInputFilter, TOutputFilter, 
 
   this->AllocateOutputs();
 
-  RegionType requestedRegion = this->GetOutput()->GetRequestedRegion();
-  IndexType requestedIndex = requestedRegion.GetIndex();
-  SizeType requestedSize = requestedRegion.GetSize();
+
+  const RegionType requestedRegion = this->GetOutput()->GetRequestedRegion();
+  const IndexType requestedIndex = requestedRegion.GetIndex();
+  const SizeType requestedSize = requestedRegion.GetSize();
 
   InternalRegionType internalRegion;
-  InternalSizeType internalSize;
-  InternalIndexType internalIndex;
 
-  for( unsigned int i = 0; i < InternalImageDimension; i++ )
+  // copy the requrested region to the internal slice region in
+  // dimension order
+  unsigned int internal_i = 0;
+  for( unsigned int i = 0; i < InternalImageDimension + 1; ++i, ++internal_i )
     {
-    if( i != this->m_Dimension )
+    if ( i == this->m_Dimension )
       {
-      internalSize[i] = requestedSize[i];
-      internalIndex[i] = requestedIndex[i];
+      ++i;
       }
-    else
-      {
-      internalSize[i] = requestedSize[ ImageDimension - 1 ];
-      internalIndex[i] = requestedIndex[ ImageDimension - 1 ];
-      }
+    internalRegion.SetSize( internal_i, requestedSize[i] );
+    internalRegion.SetIndex( internal_i, requestedIndex[i] );
     }
-  internalRegion.SetSize( internalSize );
-  internalRegion.SetIndex( internalIndex );
 
   ProgressReporter progress( this, 0, requestedSize[m_Dimension] );
 
@@ -195,17 +191,26 @@ SliceBySliceImageFilter<TInputImage, TOutputImage, TInputFilter, TOutputFilter, 
       internalInputs[i] = InternalInputImageType::New();
       }
 
-  const int sliceRange =
+  const int sliceRangeMax =
     static_cast< int >( requestedSize[m_Dimension] ) + requestedIndex[m_Dimension];
 
-  for( int slice = requestedIndex[m_Dimension]; slice < sliceRange; slice++ )
+  for( int slice = requestedIndex[m_Dimension]; slice < sliceRangeMax; slice++ )
     {
 
     // say to the user that we are begining a new slice
     m_SliceIndex = slice;
     this->InvokeEvent( IterationEvent() );
 
+    // this region is the current region for the input and output we
+    // are iterating on
+    RegionType currentRegion = this->GetOutput()->GetRequestedRegion();
+    currentRegion.SetIndex( m_Dimension, slice );
+    currentRegion.SetSize( m_Dimension, 1 );
 
+    itkAssertOrThrowMacro( currentRegion.GetNumberOfPixels() == internalRegion.GetNumberOfPixels(), "currentRegion.GetNumberOfPixels() == internalRegion.GetNumberOfPixel()" );
+
+    itkDebugMacro( "currentRegion: " << currentRegion );
+    itkDebugMacro( "internalRegion: " << internalRegion );
 
     // reallocate the internal input at each slice, so the slice by slice filter can work
     // even if the pipeline is run in place
@@ -215,39 +220,26 @@ SliceBySliceImageFilter<TInputImage, TOutputImage, TInputFilter, TOutputFilter, 
       internalInputs[i]->Allocate();
       m_InputFilter->SetInput( i, internalInputs[i] );
       }
-  
-    // copy the current slice to the input image
-    typedef ImageRegionIterator< InternalInputImageType > InputIteratorType;
-    std::vector< InputIteratorType > inputIterators;
-    inputIterators.resize( this->GetNumberOfInputs() );
+
 
     for( unsigned int i = 0; i < this->GetNumberOfInputs(); i++ )
       {
-      inputIterators[i] = InputIteratorType( internalInputs[i], internalRegion );
-      inputIterators[i].GoToBegin();
-      }
+      // copy the current input slices to the internalInputs
+      typedef ImageRegionConstIterator< InputImageType > InputIteratorType;
+      typedef ImageRegionIterator< InternalInputImageType > OutputIteratorType;
 
-    while( !inputIterators[0].IsAtEnd() )
-      {
-      IndexType idx;
-      const InternalIndexType iidx = inputIterators[0].GetIndex();
-      for( unsigned int i = 0; i < InternalImageDimension; i++ )
-        {
-        if( i >= m_Dimension )
-          {
-          idx[i+1] = iidx[i];
-          }
-        else
-          {
-          idx[i] = iidx[i];
-          }
-        }
-      idx[ m_Dimension ] = slice;
+      InputIteratorType inputIterator( this->GetInput( i ), currentRegion );
+      inputIterator.GoToBegin();
 
-      for( unsigned int i = 0; i < this->GetNumberOfInputs(); i++ )
+      OutputIteratorType outputIterator( internalInputs[i], internalRegion );
+      outputIterator.GoToBegin();
+
+      // copy loop
+      while( !inputIterator.IsAtEnd() )
         {
-        inputIterators[i].Set( this->GetInput( i )->GetPixel( idx ) );
-        ++(inputIterators[i]);
+        outputIterator.Set( inputIterator.Get() );
+        ++outputIterator;
+        ++inputIterator;
         }
       }
 
@@ -256,45 +248,28 @@ SliceBySliceImageFilter<TInputImage, TOutputImage, TInputFilter, TOutputFilter, 
     m_OutputFilter->Modified(); // should not be needed, but may help in some cases
     m_OutputFilter->UpdateLargestPossibleRegion();
     progress.CompletedPixel();
-    
+
     // and copy the output slice to the output image
-    typedef ImageRegionConstIterator< InternalOutputImageType > OutputIteratorType;
-    std::vector< OutputIteratorType > outputIterators;
-
-    outputIterators.resize( this->GetNumberOfOutputs() );
-
     for( unsigned int i = 0; i < this->GetNumberOfOutputs(); i++ )
       {
-      outputIterators[i] = OutputIteratorType( m_OutputFilter->GetOutput( i ), internalRegion );
-      outputIterators[i].GoToBegin();
-      }
+      // copy the internal output slize slices to the current output slice
+      typedef ImageRegionConstIterator< InternalOutputImageType > InputIteratorType;
+      typedef ImageRegionIterator< OutputImageType > OutputIteratorType;
 
-    while( !outputIterators[0].IsAtEnd() )
-      {
-      IndexType idx;
-      const InternalIndexType iidx = outputIterators[0].GetIndex();
-      for( unsigned int i = 0; i < InternalImageDimension; i++ )
+      InputIteratorType inputIterator( m_OutputFilter->GetOutput( i ), internalRegion );
+      inputIterator.GoToBegin();
+
+      OutputIteratorType outputIterator( this->GetOutput( i ), currentRegion );
+      outputIterator.GoToBegin();
+
+      // copy loop
+      while( !inputIterator.IsAtEnd() )
         {
-        if( i >= m_Dimension )
-          {
-          idx[i+1] = iidx[i];
-          }
-        else
-          {
-          idx[i] = iidx[i];
-          }
+        outputIterator.Set( inputIterator.Get() );
+        ++outputIterator;
+        ++inputIterator;
         }
-
-      idx[ m_Dimension ] = slice;
-
-      for( unsigned int i = 0; i < this->GetNumberOfOutputs(); i++ )
-        {
-        this->GetOutput( i )->SetPixel( idx, outputIterators[i].Get() );
-        ++(outputIterators[i]);
-        }
-
       }
-
     }
 }
 
@@ -307,9 +282,9 @@ SliceBySliceImageFilter<TInputImage, TOutputImage, TInputFilter, TOutputFilter, 
   Superclass::PrintSelf(os, indent);
 
   os << indent << "Dimension: " << this->m_Dimension << std::endl;
-  os << indent << "InputFilter: " << this->m_InputFilter->GetNameOfClass() 
+  os << indent << "InputFilter: " << this->m_InputFilter->GetNameOfClass()
      << " " << this->m_InputFilter.GetPointer() << std::endl;
-  os << indent << "OutputFilter: " << this->m_OutputFilter->GetNameOfClass() 
+  os << indent << "OutputFilter: " << this->m_OutputFilter->GetNameOfClass()
      << " " << this->m_OutputFilter.GetPointer() << std::endl;
   os << indent << "SliceIndex: " << m_SliceIndex << std::endl;
 }
