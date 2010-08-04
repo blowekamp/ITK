@@ -184,7 +184,18 @@ SliceBySliceImageFilter<TInputImage, TOutputImage, TInputFilter, TOutputFilter, 
 
   ProgressReporter progress( this, 0, requestedSize[m_Dimension] );
 
-  const int sliceRange = 
+  // allocate a vector to store internal image
+  typedef typename InternalInputImageType::Pointer InternalInputImagePointer;
+  std::vector< InternalInputImagePointer > internalInputs( this->GetNumberOfInputs() );
+
+  // keep the internal input around each iteration, because if the
+  // fitlers are not run inplace, we don't need to reallocate each iteration
+  for( unsigned int i = 0; i < this->GetNumberOfInputs(); i++ )
+      {
+      internalInputs[i] = InternalInputImageType::New();
+      }
+
+  const int sliceRange =
     static_cast< int >( requestedSize[m_Dimension] ) + requestedIndex[m_Dimension];
 
   for( int slice = requestedIndex[m_Dimension]; slice < sliceRange; slice++ )
@@ -194,16 +205,12 @@ SliceBySliceImageFilter<TInputImage, TOutputImage, TInputFilter, TOutputFilter, 
     m_SliceIndex = slice;
     this->InvokeEvent( IterationEvent() );
 
+
+
     // reallocate the internal input at each slice, so the slice by slice filter can work
     // even if the pipeline is run in place
-    typedef typename InternalInputImageType::Pointer InternalInputImagePointer;
-    std::vector< InternalInputImagePointer > internalInputs;
-
-    internalInputs.resize( this->GetNumberOfInputs() );
-
     for( unsigned int i = 0; i < this->GetNumberOfInputs(); i++ )
       {
-      internalInputs[i] = InternalInputImageType::New();
       internalInputs[i]->SetRegions( internalRegion );
       internalInputs[i]->Allocate();
       m_InputFilter->SetInput( i, internalInputs[i] );
