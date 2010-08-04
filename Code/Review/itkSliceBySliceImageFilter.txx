@@ -48,6 +48,9 @@ SliceBySliceImageFilter< TInputImage, TOutputImage, TInputFilter, TOutputFilter,
 
   // the superclases implementation is the correct one to use since it
   // just copies the enlarged output requested region to the inputs
+  //
+  // UNLESS the dimensions are mixed and
+  // CallCopyOutputRegionToInputRegion will do the wrong thing
 }
 
 template< class TInputImage, class TOutputImage, class TInputFilter, class TOutputFilter, class TInternalInputImageType,

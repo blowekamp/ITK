@@ -126,32 +126,34 @@ public:
   itkStaticConstMacro(InternalImageDimension, unsigned int,
                       InternalInputImageType::ImageDimension);
 
+  /// \todo document me
   itkSetMacro(Dimension, unsigned int);
   itkGetConstMacro(Dimension, unsigned int);
 
-  void SetFilter(InputFilterType *filter);
-
+  /// \todo document me
+  void SetFilter(InputFilterType * filter);
   InputFilterType * GetFilter()
   {
     return this->m_InputFilter;
   }
-
   const InputFilterType * GetFilter() const
   {
     return this->m_InputFilter;
   }
 
-  void SetInputFilter(InputFilterType *filter);
+  /// \todo document me
+  void SetInputFilter( InputFilterType * filter );
+  itkGetObjectMacro( InputFilter, InputFilterType );
 
-  itkGetObjectMacro(InputFilter, InputFilterType);
-
-  void SetOutputFilter(OutputFilterType *filter);
-
-  itkGetObjectMacro(OutputFilter, OutputFilterType);
+  /// \todo document me
+  void SetOutputFilter( OutputFilterType * filter );
+  itkGetObjectMacro( OutputFilter, OutputFilterType );
 
   /** The index of the slice currently processed by the filter. This is intended to be
    * used with the IterationEvent sent before the processing of each object. It contains
    * a relevant value only during the filter update.
+   *
+   * \todo should this be a protected methods
    */
   itkGetConstMacro(SliceIndex, long);
 protected:
