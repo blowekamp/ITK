@@ -46,17 +46,8 @@ SliceBySliceImageFilter< TInputImage, TOutputImage, TInputFilter, TOutputFilter,
   // call the superclass' implementation of this method
   Superclass::GenerateInputRequestedRegion();
 
-  for ( unsigned int i = 0; i < this->GetNumberOfInputs(); i++ )
-    {
-    InputImagePointer inputPtr = const_cast< InputImageType * >( this->GetInput(i) );
-
-    if ( !inputPtr )
-      {
-      return;
-      }
-
-    inputPtr->SetRequestedRegion( inputPtr->GetLargestPossibleRegion() );
-    }
+  // the superclases implementation is the correct one to use since it
+  // just copies the enlarged output requested region to the inputs
 }
 
 template< class TInputImage, class TOutputImage, class TInputFilter, class TOutputFilter, class TInternalInputImageType,
@@ -64,12 +55,35 @@ template< class TInputImage, class TOutputImage, class TInputFilter, class TOutp
 void
 SliceBySliceImageFilter< TInputImage, TOutputImage, TInputFilter, TOutputFilter, TInternalInputImageType,
                          TInternalOutputImageType >
-::EnlargeOutputRequestedRegion(DataObject *)
+::EnlargeOutputRequestedRegion(DataObject *output)
 {
-  for ( unsigned int i = 0; i < this->GetNumberOfOutputs(); i++ )
+
+  TOutputImage *out = dynamic_cast<TOutputImage*>(output);
+
+  if (out)
     {
-    this->GetOutput(i)->SetRequestedRegion( this->GetOutput(i)->GetLargestPossibleRegion() );
+    const RegionType &largestOutputRegion = out->GetLargestPossibleRegion();
+
+    // verify sane parameter
+    if ( this->m_Dimension >=  largestOutputRegion.GetImageDimension() )
+      {
+      itkExceptionMacro("Dimension selected for slicing is greater than ImageDimension");
+      }
+
+    // The requested region is the largest is all but the slice
+    // dimension. In that dimension we can stream the requested
+    // slices.
+    RegionType outputRegion =  out->GetLargestPossibleRegion();
+    outputRegion.SetIndex( m_Dimension, out->GetRequestedRegion().GetIndex(m_Dimension) );
+    outputRegion.SetSize( m_Dimension, out->GetRequestedRegion().GetSize(m_Dimension) );
+
+    out->SetRequestedRegion( outputRegion );
     }
+
+  // NOTE: we only set the requested region on this passed arguemnt
+  // output, because the default
+  // ProcessObject::GenerateOutputRequestedRegion will propogate the
+  // same requested region to the other outputs ( if they exist )
 }
 
 template< class TInputImage, class TOutputImage, class TInputFilter, class TOutputFilter, class TInternalInputImageType,
