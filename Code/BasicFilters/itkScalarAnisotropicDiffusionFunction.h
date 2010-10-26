@@ -57,12 +57,18 @@ public:
   typedef typename Superclass::RadiusType       RadiusType;
   typedef typename Superclass::NeighborhoodType NeighborhoodType;
   typedef typename Superclass::TimeStepType     TimeStepType;
+  typedef typename Superclass::AccumulateType   AccumulateType;
 
   /** Run-time type information (and related methods). */
   itkTypeMacro(ScalarAnisotropicDiffusionFunction,
                AnisotropicDiffusionFunction);
 
-  virtual void CalculateAverageGradientMagnitudeSquared(TImage *);
+  virtual void CalculateAverageGradientMagnitudeSquared(ImageType *) { itkExceptionMacro("Unexpected execution of single threaded methods" ); }
+
+  virtual void ThreadedCalculateAverageGradientMagnitudeSquared(const TImage *,
+                                                                const typename TImage::RegionType &region,
+                                                                int threadId,
+                                                                AccumulateType &outputTotal) const;
 
 protected:
   ScalarAnisotropicDiffusionFunction() {}

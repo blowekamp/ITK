@@ -142,10 +142,25 @@ protected:
   /** Prepare for the iteration process. */
   virtual void InitializeIteration();
 
+  virtual void CalculateAverageGradientMagnitudeSquared( AnisotropicDiffusionFunction< UpdateBufferType > *f );
+
   bool m_GradientMagnitudeIsFixed;
 private:
   AnisotropicDiffusionImageFilter(const Self &); //purposely not implemented
   void operator=(const Self &);                  //purposely not implemented
+
+  /** Structure for passing information into static callback methods.  Used in
+   * the subclasses' threading mechanisms. */
+  struct AnisotropicFDThreadStruct {
+    AnisotropicDiffusionImageFilter *Filter;
+    AnisotropicDiffusionFunction< UpdateBufferType > *Function;
+  };
+
+  /** This callback method uses ImageSource::SplitRequestedRegion to acquire an
+   * output region that it passes to function. */
+  static ITK_THREAD_RETURN_TYPE  CalculateAverageGradientMagnitudeSquaredThreaderCallback(void *arg);
+
+  std::vector<double> m_GradientMagnitudeSquaredTotalPerThread;
 
   double       m_ConductanceParameter;
   double       m_ConductanceScalingParameter;

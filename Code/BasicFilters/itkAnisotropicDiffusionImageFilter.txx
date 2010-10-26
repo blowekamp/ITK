@@ -86,7 +86,7 @@ AnisotropicDiffusionImageFilter< TInputImage, TOutputImage >
     {
     if ( ( this->GetElapsedIterations() % m_ConductanceScalingUpdateInterval ) == 0 )
       {
-      f->CalculateAverageGradientMagnitudeSquared( this->GetOutput() );
+      this->CalculateAverageGradientMagnitudeSquared( f );
       }
     }
   else
@@ -106,6 +106,82 @@ AnisotropicDiffusionImageFilter< TInputImage, TOutputImage >
     {
     this->UpdateProgress(0);
     }
+}
+
+template< class TInputImage, class TOutputImage >
+void
+AnisotropicDiffusionImageFilter< TInputImage, TOutputImage >
+::CalculateAverageGradientMagnitudeSquared( AnisotropicDiffusionFunction< UpdateBufferType > *f )
+{
+  ///////
+  // do things before threaded execution
+  ///////
+  this->m_GradientMagnitudeSquaredTotalPerThread.resize( this->GetNumberOfThreads() );
+  std::fill( this->m_GradientMagnitudeSquaredTotalPerThread.begin(),
+             this->m_GradientMagnitudeSquaredTotalPerThread.end(),
+             0.0 );
+
+ // Set up for multithreaded processing.
+  AnisotropicFDThreadStruct str;
+
+  str.Filter = this;
+  str.Function = f;
+
+  this->GetMultiThreader()->SetNumberOfThreads( this->GetNumberOfThreads() );
+  this->GetMultiThreader()->SetSingleMethod(this->CalculateAverageGradientMagnitudeSquaredThreaderCallback,
+                                            &str);
+  // Multithread the execution
+  this->GetMultiThreader()->SingleMethodExecute();
+
+  ///////
+  // do things after threaded execution
+  ///////
+
+  // average the gradient magnitude
+  double total = std::accumulate( this->m_GradientMagnitudeSquaredTotalPerThread.begin(),
+                                  this->m_GradientMagnitudeSquaredTotalPerThread.end(),
+                                  0.0 );
+
+  typename OutputImageType::SizeValueType  requestedRegionSize =
+    this->GetOutput()->GetRequestedRegion().GetNumberOfPixels();
+
+  double average = total / requestedRegionSize;
+
+  f->SetAverageGradientMagnitudeSquared( average );
+
+  itkDebugMacro( "Set AverageGradientMagnitudeSquared to " << average );
+}
+
+template< class TInputImage, class TOutputImage >
+ITK_THREAD_RETURN_TYPE
+AnisotropicDiffusionImageFilter< TInputImage, TOutputImage >
+::CalculateAverageGradientMagnitudeSquaredThreaderCallback(void *arg)
+{
+  AnisotropicFDThreadStruct *str;
+  int                  total, threadId, threadCount;
+
+  threadId = ( (MultiThreader::ThreadInfoStruct *)( arg ) )->ThreadID;
+  threadCount = ( (MultiThreader::ThreadInfoStruct *)( arg ) )->NumberOfThreads;
+
+  str = (AnisotropicFDThreadStruct *)( ( (MultiThreader::ThreadInfoStruct *)( arg ) )->UserData );
+
+  // Execute the actual method with appropriate output region
+  // first find out how many pieces extent can be split into.
+  // Using the SplitRequestedRegion method from itk::ImageSource.
+  typename TInputImage::RegionType splitRegion;
+  total = str->Filter->SplitRequestedRegion(threadId, threadCount, splitRegion);
+
+  if ( threadId < total )
+    {
+
+    str->Function->ThreadedCalculateAverageGradientMagnitudeSquared(str->Filter->GetOutput(),
+                                                                    splitRegion,
+                                                                    threadId,
+                                                                    str->Filter->m_GradientMagnitudeSquaredTotalPerThread[threadId]);
+    }
+
+
+  return ITK_THREAD_RETURN_VALUE;
 }
 
 template< class TInputImage, class TOutputImage >
