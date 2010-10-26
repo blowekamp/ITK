@@ -68,6 +68,7 @@ public:
   typedef typename Superclass::TimeStepType     TimeStepType;
   typedef typename Superclass::RadiusType       RadiusType;
   typedef typename Superclass::NeighborhoodType NeighborhoodType;
+  typedef typename Superclass::AccumulateType   AccumulateType;
 
   /** Inherit some parameters from the superclass type */
   itkStaticConstMacro(ImageDimension, unsigned int,
@@ -76,6 +77,18 @@ public:
 
   /** Compute the average gradient magnitude squared. */
   virtual void CalculateAverageGradientMagnitudeSquared(TImage *);
+
+  virtual void ThreadedCalculateAverageGradientMagnitudeSquared(const TImage *i,
+                                                                const typename TImage::RegionType &region,
+                                                                int threadId,
+                                                                AccumulateType &outputTotal) const
+  {
+    if (threadId == 0 )
+      {
+      // this->CalculateAverageGradientMagnitudeSquared(i);
+//       outputTotal = this->GetAverageGradientMagnitudeSquared()*region.GetNumberOfPixels();
+      }
+  }
 
 protected:
   VectorAnisotropicDiffusionFunction() {}
