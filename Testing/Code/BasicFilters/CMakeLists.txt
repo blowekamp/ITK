@@ -18,7 +18,7 @@ set(BASIC_FILTERS_TESTS4 ${CXX_TEST_PATH}/itkBasicFiltersTests4)
 set(BASIC_FILTERS_TESTS5 ${CXX_TEST_PATH}/itkBasicFiltersTests5)
 
 set(BASIC_FILTERS_HEADER_TEST ${CXX_TEST_PATH}/itkBasicFiltersHeaderTest)
-set(BASELINE ${ITK_DATA_ROOT}/Baseline/BasicFilters)
+set(BASLINE ${ITK_DATA_ROOT}/Baseline/BasicFilters)
 set(INPUTDATA ${ITK_DATA_ROOT}/Input)
 set(TEMP ${ITKTesting_BINARY_DIR}/Temporary)
 
@@ -1047,6 +1047,10 @@ add_test(itkBSplineUpsampleImageFilterTest
   3  # Spline order
   )
 
+add_test(itkRecursiveGaussianScaleSpaceTest1
+  ${BASIC_FILTERS_TESTS5} itkRecursiveGaussianScaleSpaceTest1
+  )
+
 
 set(BasicFilters_SRCS
 itkAcosImageFilterAndAdaptorTest.cxx
@@ -1344,6 +1348,7 @@ set(BasicFilters5_SRCS
   itkWarpImageFilterTest2.cxx
   itkBSplineDownsampleImageFilterTest.cxx
   itkBSplineUpsampleImageFilterTest.cxx
+  itkRecursiveGaussianScaleSpaceTest1.cxx
 )
 
 if(ITK_OBJCXX_COMPILER_WORKS)
