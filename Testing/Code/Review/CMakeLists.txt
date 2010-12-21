@@ -118,6 +118,7 @@ set(ReviewTest_SRCS
   itkMapMaskedRankImageFilterTest.cxx
   itkFastApproximateRankImageFilterTest.cxx
 
+  itkGaussianOperatorTest2.cxx
   itkDiscreteGaussianDerivativeImageFunctionTest.cxx
   itkDiscreteGradientMagnitudeGaussianImageFunctionTest.cxx
   itkDiscreteHessianGaussianImageFunctionTest.cxx

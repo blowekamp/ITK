@@ -212,11 +212,16 @@ DiscreteHessianGaussianImageFunction< TInputImage, TOutput >
 ::EvaluateAtIndex(const IndexType & index) const
 {
   OutputType hessian;
-
-  for ( unsigned int i = 0; i < m_KernelArray.Size(); ++i )
+  unsigned int kernelidx = 0;
+  for ( unsigned int i = 0; i < itkGetStaticConstMacro(ImageDimension2); ++i )
     {
-    m_OperatorImageFunction->SetOperator(m_KernelArray[i]);
-    hessian[i] = m_OperatorImageFunction->EvaluateAtIndex(index);
+    for ( unsigned int j = i; j < itkGetStaticConstMacro(ImageDimension2); ++j )
+      {
+      m_OperatorImageFunction->SetOperator(m_KernelArray[kernelidx]);
+      hessian[kernelidx] = m_OperatorImageFunction->EvaluateAtIndex(index);
+
+      ++kernelidx;
+      }
     }
   return hessian;
 }
