@@ -53,7 +53,7 @@ public:
   itkNewMacro(Self);
 
   /** Run-time type information (and related methods). */
-  itkTypeMacro(NormalizedCorrelationImageToImageMetric, Object);
+  itkTypeMacro(NormalizedCorrelationImageToImageMetric, ImageToImageMetric);
 
   /** Types transferred from the base class */
   typedef typename Superclass::RealType                RealType;
@@ -67,10 +67,26 @@ public:
 
   typedef typename Superclass::MeasureType             MeasureType;
   typedef typename Superclass::DerivativeType          DerivativeType;
+  typedef typename Superclass::ImageDerivativesType    ImageDerivativesType;
   typedef typename Superclass::FixedImageType          FixedImageType;
+  typedef typename Superclass::FixedImagePointType     FixedImagePointType;
   typedef typename Superclass::MovingImageType         MovingImageType;
+  typedef typename Superclass::MovingImagePointType    MovingImagePointType;
   typedef typename Superclass::FixedImageConstPointer  FixedImageConstPointer;
   typedef typename Superclass::MovingImageConstPointer MovingImageConstPointer;
+
+/** The moving image dimension. */
+  itkStaticConstMacro(MovingImageDimension, unsigned int, MovingImageType::ImageDimension);
+
+
+  /**
+   *  Initialize the Metric by
+   *  (1) making sure that all the components are present and plugged
+   *      together correctly,
+   *  (2) uniformly select NumberOfSpatialSamples within
+   *      the FixedImageRegion, and
+   *  (3) allocate memory for pdf data structures. */
+  virtual void Initialize(void) throw ( ExceptionObject );
 
   /** Get the derivatives of the match measure. */
   void GetDerivative(const TransformParametersType & parameters,
@@ -92,7 +108,7 @@ public:
   itkBooleanMacro(SubtractMean);
 protected:
   NormalizedCorrelationImageToImageMetric();
-  virtual ~NormalizedCorrelationImageToImageMetric() {}
+  virtual ~NormalizedCorrelationImageToImageMetric();
   void PrintSelf(std::ostream & os, Indent indent) const;
 
 private:
@@ -101,7 +117,42 @@ private:
   void operator=(const Self &);                          //purposely not
                                                          // implemented
 
+
+   inline bool GetValueThreadProcessSample(unsigned int threadID,
+                                          unsigned long fixedImageSample,
+                                          const MovingImagePointType & mappedPoint,
+                                          double movingImageValue) const;
+
+   inline bool GetValueAndDerivativeThreadProcessSample(unsigned int threadID,
+                                                        unsigned long fixedImageSample,
+                                                        const MovingImagePointType & mappedPoint,
+                                                        double movingImageValue,
+                                                        const ImageDerivativesType &
+                                                        movingImageGradientValue) const;
+
+  typedef typename NumericTraits< MeasureType >::AccumulateType AccumulateType;
+
   bool m_SubtractMean;
+
+  DerivativeType *m_ThreaderMSEDerivatives;
+
+  class MutableThreaderData
+  {
+  public:
+    // per thread sums of fix and moving image values
+    std::vector<AccumulateType> m_ThreaderSFF;
+    std::vector<AccumulateType> m_ThreaderSMM;
+    std::vector<AccumulateType> m_ThreaderSFM;
+    std::vector<AccumulateType> m_ThreaderSF;
+    std::vector<AccumulateType> m_ThreaderSM;
+
+    std::vector<DerivativeType> m_ThreaderDerivativeF;
+    std::vector<DerivativeType> m_ThreaderDerivativeM;
+    std::vector<AccumulateType> m_ThreaderDerivativeD;
+  };
+
+  // threader data
+  MutableThreaderData *m_TD;
 };
 } // end namespace itk
 

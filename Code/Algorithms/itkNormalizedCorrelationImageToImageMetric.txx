@@ -30,7 +30,81 @@ template< class TFixedImage, class TMovingImage >
 NormalizedCorrelationImageToImageMetric< TFixedImage, TMovingImage >
 ::NormalizedCorrelationImageToImageMetric()
 {
+
+  this->SetComputeGradient(true);
+
   m_SubtractMean = false;
+
+  this->m_TD = NULL;
+}
+
+/**
+ * Destructor
+ */
+template< class TFixedImage, class TMovingImage >
+NormalizedCorrelationImageToImageMetric< TFixedImage, TMovingImage >
+::~NormalizedCorrelationImageToImageMetric()
+{
+  if ( this->m_TD != NULL )
+    {
+    delete this->m_TD;
+    }
+  this->m_TD = NULL;
+}
+
+
+/**
+ * Initialize
+ */
+template< class TFixedImage, class TMovingImage >
+void
+NormalizedCorrelationImageToImageMetric< TFixedImage, TMovingImage >
+::Initialize()
+throw ( ExceptionObject )
+{
+
+  this->Superclass::Initialize();
+  this->Superclass::MultiThreadingInitialize();
+
+if ( this->m_TD != NULL )
+    {
+    delete this->m_TD;
+    }
+  this->m_TD = new MutableThreaderData;
+
+   this->m_TD->m_ThreaderSFF.resize( this->m_NumberOfThreads );
+   this->m_TD->m_ThreaderSMM.resize( this->m_NumberOfThreads );
+   this->m_TD->m_ThreaderSFM.resize( this->m_NumberOfThreads );
+   this->m_TD->m_ThreaderSF.resize( this->m_NumberOfThreads );
+   this->m_TD->m_ThreaderSM.resize( this->m_NumberOfThreads );
+
+   this->m_TD->m_ThreaderDerivativeF.resize( this->m_NumberOfThreads );
+   this->m_TD->m_ThreaderDerivativeM.resize( this->m_NumberOfThreads );
+
+  for ( unsigned int threadID = 0; threadID < this->m_NumberOfThreads; threadID++ )
+    {
+     this->m_TD->m_ThreaderDerivativeM[threadID].SetSize( this->m_NumberOfParameters);
+     this->m_TD->m_ThreaderDerivativeF[threadID].SetSize( this->m_NumberOfParameters);
+    }
+
+  this->m_TD->m_ThreaderDerivativeD.resize( this->m_NumberOfThreads );
+}
+
+template< class TFixedImage, class TMovingImage  >
+inline bool
+NormalizedCorrelationImageToImageMetric< TFixedImage, TMovingImage >
+::GetValueThreadProcessSample(unsigned int threadID,
+                              unsigned long fixedImageSample,
+                              const MovingImagePointType & itkNotUsed(mappedPoint),
+                              double movingImageValue) const
+{
+  this->m_TD->m_ThreaderSFF[threadID] += vnl_math_sqr( this->m_FixedImageSamples[fixedImageSample].value );
+  this->m_TD->m_ThreaderSMM[threadID] += vnl_math_sqr( movingImageValue );
+  this->m_TD->m_ThreaderSFM[threadID] += this->m_FixedImageSamples[fixedImageSample].value * movingImageValue;
+  this->m_TD->m_ThreaderSF[threadID] += this->m_FixedImageSamples[fixedImageSample].value;
+  this->m_TD->m_ThreaderSM[threadID] += movingImageValue;
+
+  return true;
 }
 
 /**
@@ -41,71 +115,42 @@ typename NormalizedCorrelationImageToImageMetric< TFixedImage, TMovingImage >::M
 NormalizedCorrelationImageToImageMetric< TFixedImage, TMovingImage >
 ::GetValue(const TransformParametersType & parameters) const
 {
-  FixedImageConstPointer fixedImage = this->m_FixedImage;
 
-  if ( !fixedImage )
+  itkDebugMacro("GetValue( " << parameters << " ) ");
+
+  if ( !this->m_FixedImage )
     {
     itkExceptionMacro(<< "Fixed image has not been assigned");
     }
 
-  typedef  itk::ImageRegionConstIteratorWithIndex< FixedImageType > FixedIteratorType;
+  // Set up the parameters in the transform
+  this->m_Transform->SetParameters(parameters);
+  this->m_Parameters = parameters;
 
-  FixedIteratorType ti( fixedImage, this->GetFixedImageRegion() );
+  // fill arrays with zeros
+  this->m_TD->m_ThreaderSFF.assign( this->m_NumberOfThreads, 0.0 );
+  this->m_TD->m_ThreaderSMM.assign( this->m_NumberOfThreads, 0.0 );
+  this->m_TD->m_ThreaderSFM.assign( this->m_NumberOfThreads, 0.0 );
+  this->m_TD->m_ThreaderSF.assign( this->m_NumberOfThreads, 0.0 );
+  this->m_TD->m_ThreaderSM.assign( this->m_NumberOfThreads, 0.0 );
 
-  typename FixedImageType::IndexType index;
+  // MUST BE CALLED TO INITIATE PROCESSING
+  this->GetValueMultiThreadedInitiate();
 
-  MeasureType measure;
+  itkDebugMacro("Ratio of voxels mapping into moving image buffer: "
+                << this->m_NumberOfPixelsCounted << " / "
+                << this->m_NumberOfFixedImageSamples
+                << std::endl);
 
-  this->m_NumberOfPixelsCounted = 0;
+  // reduce from the threaded computation by accumulating
+  double sff = std::accumulate( this->m_TD->m_ThreaderSFF.begin(), this->m_TD->m_ThreaderSFF.end(), itk::NumericTraits<AccumulateType>::ZeroValue() );
+  double smm = std::accumulate( this->m_TD->m_ThreaderSMM.begin(), this->m_TD->m_ThreaderSMM.end(), itk::NumericTraits<AccumulateType>::ZeroValue() );
+  double sfm = std::accumulate( this->m_TD->m_ThreaderSFM.begin(), this->m_TD->m_ThreaderSFM.end(), itk::NumericTraits<AccumulateType>::ZeroValue() );
+  double sm = std::accumulate( this->m_TD->m_ThreaderSF.begin(), this->m_TD->m_ThreaderSF.end(), itk::NumericTraits<AccumulateType>::ZeroValue() );
+  double sf = std::accumulate( this->m_TD->m_ThreaderSM.begin(), this->m_TD->m_ThreaderSM.end(), itk::NumericTraits<AccumulateType>::ZeroValue() );
 
-  this->SetTransformParameters(parameters);
 
-  typedef  typename NumericTraits< MeasureType >::AccumulateType AccumulateType;
-
-  AccumulateType sff = NumericTraits< AccumulateType >::Zero;
-  AccumulateType smm = NumericTraits< AccumulateType >::Zero;
-  AccumulateType sfm = NumericTraits< AccumulateType >::Zero;
-  AccumulateType sf  = NumericTraits< AccumulateType >::Zero;
-  AccumulateType sm  = NumericTraits< AccumulateType >::Zero;
-
-  while ( !ti.IsAtEnd() )
-    {
-    index = ti.GetIndex();
-
-    InputPointType inputPoint;
-    fixedImage->TransformIndexToPhysicalPoint(index, inputPoint);
-
-    if ( this->m_FixedImageMask && !this->m_FixedImageMask->IsInside(inputPoint) )
-      {
-      ++ti;
-      continue;
-      }
-
-    OutputPointType transformedPoint = this->m_Transform->TransformPoint(inputPoint);
-
-    if ( this->m_MovingImageMask && !this->m_MovingImageMask->IsInside(transformedPoint) )
-      {
-      ++ti;
-      continue;
-      }
-
-    if ( this->m_Interpolator->IsInsideBuffer(transformedPoint) )
-      {
-      const RealType movingValue  = this->m_Interpolator->Evaluate(transformedPoint);
-      const RealType fixedValue   = ti.Get();
-      sff += fixedValue  * fixedValue;
-      smm += movingValue * movingValue;
-      sfm += fixedValue  * movingValue;
-      if ( this->m_SubtractMean )
-        {
-        sf += fixedValue;
-        sm += movingValue;
-        }
-      this->m_NumberOfPixelsCounted++;
-      }
-
-    ++ti;
-    }
+  double measure = 0.0;
 
   if ( this->m_SubtractMean && this->m_NumberOfPixelsCounted > 0 )
     {
@@ -128,6 +173,7 @@ NormalizedCorrelationImageToImageMetric< TFixedImage, TMovingImage >
   return measure;
 }
 
+
 /**
  * Get the Derivative Measure
  */
@@ -137,181 +183,81 @@ NormalizedCorrelationImageToImageMetric< TFixedImage, TMovingImage >
 ::GetDerivative(const TransformParametersType & parameters,
                 DerivativeType & derivative) const
 {
-  if ( !this->GetGradientImage() )
-    {
-    itkExceptionMacro(<< "The gradient image is null, maybe you forgot to call Initialize()");
-    }
 
-  FixedImageConstPointer fixedImage = this->m_FixedImage;
-
-  if ( !fixedImage )
+  if ( !this->m_FixedImage )
     {
     itkExceptionMacro(<< "Fixed image has not been assigned");
     }
 
-  const unsigned int dimension = FixedImageType::ImageDimension;
+  MeasureType value;
+  // call the combined version
+  this->GetValueAndDerivative(parameters, value, derivative);
+}
 
-  typedef  itk::ImageRegionConstIteratorWithIndex< FixedImageType > FixedIteratorType;
 
-  FixedIteratorType ti( fixedImage, this->GetFixedImageRegion() );
+template< class TFixedImage, class TMovingImage  >
+inline bool
+NormalizedCorrelationImageToImageMetric< TFixedImage, TMovingImage >
+::GetValueAndDerivativeThreadProcessSample(unsigned int threadID,
+                                           unsigned long fixedImageSample,
+                                           const MovingImagePointType &mappedPoint,
+                                           double movingImageValue,
+                                           const ImageDerivativesType &gradient) const
+{
+  double fixedImageValue = this->m_FixedImageSamples[fixedImageSample].value;
 
-  typename FixedImageType::IndexType index;
 
-  this->m_NumberOfPixelsCounted = 0;
+  this->m_TD->m_ThreaderSFF[threadID] += vnl_math_sqr( fixedImageValue );
+  this->m_TD->m_ThreaderSMM[threadID] += vnl_math_sqr( movingImageValue );
+  this->m_TD->m_ThreaderSFM[threadID] += fixedImageValue * movingImageValue;
+  this->m_TD->m_ThreaderSF[threadID] += fixedImageValue;
+  this->m_TD->m_ThreaderSM[threadID] += movingImageValue;
 
-  this->SetTransformParameters(parameters);
 
-  typedef  typename NumericTraits< MeasureType >::AccumulateType AccumulateType;
+  FixedImagePointType fixedImagePoint = this->m_FixedImageSamples[fixedImageSample].point;
 
-  AccumulateType sff  = NumericTraits< AccumulateType >::Zero;
-  AccumulateType smm  = NumericTraits< AccumulateType >::Zero;
-  AccumulateType sfm = NumericTraits< AccumulateType >::Zero;
-  AccumulateType sf  = NumericTraits< AccumulateType >::Zero;
-  AccumulateType sm  = NumericTraits< AccumulateType >::Zero;
+  // Need to use one of the threader transforms if we're
+  // not in thread 0.
+  //
+  // Use a raw pointer here to avoid the overhead of smart pointers.
+  // For instance, Register and UnRegister have mutex locks around
+  // the reference counts.
+  TransformType *transform;
 
-  const unsigned int ParametersDimension = this->GetNumberOfParameters();
-  derivative = DerivativeType(ParametersDimension);
-  derivative.Fill(NumericTraits< ITK_TYPENAME DerivativeType::ValueType >::Zero);
-
-  DerivativeType derivativeF = DerivativeType(ParametersDimension);
-  derivativeF.Fill(NumericTraits< ITK_TYPENAME DerivativeType::ValueType >::Zero);
-
-  DerivativeType derivativeM = DerivativeType(ParametersDimension);
-  derivativeM.Fill(NumericTraits< ITK_TYPENAME DerivativeType::ValueType >::Zero);
-
-  ti.GoToBegin();
-  // First compute the sums
-  while ( !ti.IsAtEnd() )
+  if ( threadID > 0 )
     {
-    index = ti.GetIndex();
-
-    InputPointType inputPoint;
-    fixedImage->TransformIndexToPhysicalPoint(index, inputPoint);
-
-    if ( this->m_FixedImageMask && !this->m_FixedImageMask->IsInside(inputPoint) )
-      {
-      ++ti;
-      continue;
-      }
-
-    OutputPointType transformedPoint = this->m_Transform->TransformPoint(inputPoint);
-
-    if ( this->m_MovingImageMask && !this->m_MovingImageMask->IsInside(transformedPoint) )
-      {
-      ++ti;
-      continue;
-      }
-
-    if ( this->m_Interpolator->IsInsideBuffer(transformedPoint) )
-      {
-      const RealType movingValue  = this->m_Interpolator->Evaluate(transformedPoint);
-      const RealType fixedValue   = ti.Get();
-      sff += fixedValue  * fixedValue;
-      smm += movingValue * movingValue;
-      sfm += fixedValue  * movingValue;
-      if ( this->m_SubtractMean )
-        {
-        sf += fixedValue;
-        sm += movingValue;
-        }
-      this->m_NumberOfPixelsCounted++;
-      }
-
-    ++ti;
-    }
-
-  // Compute contributions to derivatives
-  ti.GoToBegin();
-  while ( !ti.IsAtEnd() )
-    {
-    index = ti.GetIndex();
-
-    InputPointType inputPoint;
-    fixedImage->TransformIndexToPhysicalPoint(index, inputPoint);
-
-    if ( this->m_FixedImageMask && !this->m_FixedImageMask->IsInside(inputPoint) )
-      {
-      ++ti;
-      continue;
-      }
-
-    OutputPointType transformedPoint = this->m_Transform->TransformPoint(inputPoint);
-
-    if ( this->m_MovingImageMask && !this->m_MovingImageMask->IsInside(transformedPoint) )
-      {
-      ++ti;
-      continue;
-      }
-
-    if ( this->m_Interpolator->IsInsideBuffer(transformedPoint) )
-      {
-      const RealType movingValue  = this->m_Interpolator->Evaluate(transformedPoint);
-      const RealType fixedValue     = ti.Get();
-
-      const TransformJacobianType & jacobian =
-        this->m_Transform->GetJacobian(inputPoint);
-
-      // Get the gradient by NearestNeighboorInterpolation:
-      // which is equivalent to round up the point components.
-      typedef typename OutputPointType::CoordRepType CoordRepType;
-      typedef ContinuousIndex< CoordRepType, MovingImageType::ImageDimension >
-      MovingImageContinuousIndexType;
-
-      MovingImageContinuousIndexType tempIndex;
-      this->m_MovingImage->TransformPhysicalPointToContinuousIndex(transformedPoint, tempIndex);
-
-      typename MovingImageType::IndexType mappedIndex;
-      mappedIndex.CopyWithRound(tempIndex);
-
-      const GradientPixelType gradient =
-        this->GetGradientImage()->GetPixel(mappedIndex);
-
-      for ( unsigned int par = 0; par < ParametersDimension; par++ )
-        {
-        RealType sumF = NumericTraits< RealType >::Zero;
-        RealType sumM = NumericTraits< RealType >::Zero;
-        for ( unsigned int dim = 0; dim < dimension; dim++ )
-          {
-          const RealType differential = jacobian(dim, par) * gradient[dim];
-          sumF += fixedValue  * differential;
-          sumM += movingValue * differential;
-          if ( this->m_SubtractMean && this->m_NumberOfPixelsCounted > 0 )
-            {
-            sumF -= differential * sf / this->m_NumberOfPixelsCounted;
-            sumM -= differential * sm / this->m_NumberOfPixelsCounted;
-            }
-          }
-        derivativeF[par] += sumF;
-        derivativeM[par] += sumM;
-        }
-      }
-
-    ++ti;
-    }
-
-  if ( this->m_SubtractMean && this->m_NumberOfPixelsCounted > 0 )
-    {
-    sff -= ( sf * sf / this->m_NumberOfPixelsCounted );
-    smm -= ( sm * sm / this->m_NumberOfPixelsCounted );
-    sfm -= ( sf * sm / this->m_NumberOfPixelsCounted );
-    }
-
-  const RealType denom = -1.0 * vcl_sqrt(sff * smm);
-
-  if ( this->m_NumberOfPixelsCounted > 0 && denom != 0.0 )
-    {
-    for ( unsigned int i = 0; i < ParametersDimension; i++ )
-      {
-      derivative[i] = ( derivativeF[i] - ( sfm / smm ) * derivativeM[i] ) / denom;
-      }
+    transform = this->m_ThreaderTransform[threadID - 1];
     }
   else
     {
-    for ( unsigned int i = 0; i < ParametersDimension; i++ )
-      {
-      derivative[i] = NumericTraits< MeasureType >::Zero;
-      }
+    transform = this->m_Transform;
     }
+
+
+  // Jacobian should be evaluated at the unmapped (fixed image) point.
+  const TransformJacobianType & jacobian = transform->GetJacobian(fixedImagePoint);
+
+  for ( unsigned int par = 0; par < this->m_NumberOfParameters; par++ )
+    {
+    RealType sumF = NumericTraits< RealType >::Zero;
+    RealType sumM = NumericTraits< RealType >::Zero;
+    RealType sumD = NumericTraits< RealType >::Zero;
+
+    for ( unsigned int dim = 0; dim < MovingImageDimension; dim++ )
+      {
+      const RealType differential = jacobian(dim, par) * gradient[dim];
+      sumF += fixedImageValue  * differential;
+      sumM += movingImageValue * differential;
+      sumD += differential;
+
+      }
+    this->m_TD->m_ThreaderDerivativeF[threadID][par] += sumF;
+    this->m_TD->m_ThreaderDerivativeM[threadID][par] += sumM;
+    this->m_TD->m_ThreaderDerivativeD[threadID] += sumD;
+    }
+
+
+  return true;
 }
 
 /*
@@ -323,165 +269,88 @@ NormalizedCorrelationImageToImageMetric< TFixedImage, TMovingImage >
 ::GetValueAndDerivative(const TransformParametersType & parameters,
                         MeasureType & value, DerivativeType  & derivative) const
 {
-  if ( !this->GetGradientImage() )
-    {
-    itkExceptionMacro(<< "The gradient image is null, maybe you forgot to call Initialize()");
-    }
-
-  FixedImageConstPointer fixedImage = this->m_FixedImage;
-
-  if ( !fixedImage )
+ if ( !this->m_FixedImage )
     {
     itkExceptionMacro(<< "Fixed image has not been assigned");
     }
 
-  const unsigned int dimension = FixedImageType::ImageDimension;
+  // Set up the parameters in the transform
+  this->m_Transform->SetParameters(parameters);
+  this->m_Parameters = parameters;
 
-  typedef  itk::ImageRegionConstIteratorWithIndex< FixedImageType > FixedIteratorType;
+  // Set output values to zero
+  if ( derivative.GetSize() != this->m_NumberOfParameters )
+    {
+    derivative = DerivativeType(this->m_NumberOfParameters);
+    }
+  derivative.Fill( 0.0 );
 
-  FixedIteratorType ti( fixedImage, this->GetFixedImageRegion() );
+  // fill arrays with zeros
+  this->m_TD->m_ThreaderSFF.assign( this->m_NumberOfThreads, 0.0 );
+  this->m_TD->m_ThreaderSMM.assign( this->m_NumberOfThreads, 0.0 );
+  this->m_TD->m_ThreaderSFM.assign( this->m_NumberOfThreads, 0.0 );
+  this->m_TD->m_ThreaderSF.assign( this->m_NumberOfThreads, 0.0 );
+  this->m_TD->m_ThreaderSM.assign( this->m_NumberOfThreads, 0.0 );
 
-  typename FixedImageType::IndexType index;
+  // fill derivatives
+  for ( unsigned int threadID = 0; threadID < this->m_NumberOfThreads; threadID++ )
+    {
+    this->m_TD->m_ThreaderDerivativeF[threadID].Fill( 0.0 );
+    this->m_TD->m_ThreaderDerivativeM[threadID].Fill( 0.0 );
+    }
 
-  this->m_NumberOfPixelsCounted = 0;
+  this->m_TD->m_ThreaderDerivativeD.assign( this->m_NumberOfThreads, 0.0 );
 
-  this->SetTransformParameters(parameters);
+  // MUST BE CALLED TO INITIATE PROCESSING
+  this->GetValueAndDerivativeMultiThreadedInitiate();
 
-  typedef  typename NumericTraits< MeasureType >::AccumulateType AccumulateType;
 
-  AccumulateType sff  = NumericTraits< AccumulateType >::Zero;
-  AccumulateType smm  = NumericTraits< AccumulateType >::Zero;
-  AccumulateType sfm = NumericTraits< AccumulateType >::Zero;
-  AccumulateType sf  = NumericTraits< AccumulateType >::Zero;
-  AccumulateType sm  = NumericTraits< AccumulateType >::Zero;
+  itkDebugMacro("Ratio of voxels mapping into moving image buffer: "
+                << this->m_NumberOfPixelsCounted << " / "
+                << this->m_NumberOfFixedImageSamples
+                << std::endl);
+
+  // reduce from the threaded computation by accumulating
+  double sff = std::accumulate( this->m_TD->m_ThreaderSFF.begin(), this->m_TD->m_ThreaderSFF.end(), itk::NumericTraits<AccumulateType>::ZeroValue() );
+  double smm = std::accumulate( this->m_TD->m_ThreaderSMM.begin(), this->m_TD->m_ThreaderSMM.end(), itk::NumericTraits<AccumulateType>::ZeroValue() );
+  double sfm = std::accumulate( this->m_TD->m_ThreaderSFM.begin(), this->m_TD->m_ThreaderSFM.end(), itk::NumericTraits<AccumulateType>::ZeroValue() );
+  double sm = std::accumulate( this->m_TD->m_ThreaderSF.begin(), this->m_TD->m_ThreaderSF.end(), itk::NumericTraits<AccumulateType>::ZeroValue() );
+  double sf = std::accumulate( this->m_TD->m_ThreaderSM.begin(), this->m_TD->m_ThreaderSM.end(), itk::NumericTraits<AccumulateType>::ZeroValue() );
+
 
   const unsigned int ParametersDimension = this->GetNumberOfParameters();
-  derivative = DerivativeType(ParametersDimension);
-  derivative.Fill(NumericTraits< ITK_TYPENAME DerivativeType::ValueType >::Zero);
 
-  DerivativeType derivativeF = DerivativeType(ParametersDimension);
-  derivativeF.Fill(NumericTraits< ITK_TYPENAME DerivativeType::ValueType >::Zero);
-
-  DerivativeType derivativeM = DerivativeType(ParametersDimension);
-  derivativeM.Fill(NumericTraits< ITK_TYPENAME DerivativeType::ValueType >::Zero);
-
-  DerivativeType derivativeM1 = DerivativeType(ParametersDimension);
-  derivativeM1.Fill(NumericTraits< ITK_TYPENAME DerivativeType::ValueType >::Zero);
-
-  ti.GoToBegin();
-  // First compute the sums
-  while ( !ti.IsAtEnd() )
+  // accumulate derivative arrays
+  DerivativeType derivativeF(ParametersDimension);
+  DerivativeType derivativeM (ParametersDimension);
+  for ( unsigned int i = 0; i < ParametersDimension; i++ )
     {
-    index = ti.GetIndex();
+    derivativeF[i] = NumericTraits< typename DerivativeType::ValueType >::Zero;
+    derivativeM[i] = NumericTraits< typename DerivativeType::ValueType >::Zero;
 
-    InputPointType inputPoint;
-    fixedImage->TransformIndexToPhysicalPoint(index, inputPoint);
-
-    if ( this->m_FixedImageMask && !this->m_FixedImageMask->IsInside(inputPoint) )
+    for ( unsigned int threadID = 0; threadID < this->m_NumberOfThreads; threadID++ )
       {
-      ++ti;
-      continue;
+      derivativeF[i] += this->m_TD->m_ThreaderDerivativeF[threadID][i];
+      derivativeM[i] += this->m_TD->m_ThreaderDerivativeM[threadID][i];
       }
-
-    OutputPointType transformedPoint = this->m_Transform->TransformPoint(inputPoint);
-
-    if ( this->m_MovingImageMask && !this->m_MovingImageMask->IsInside(transformedPoint) )
-      {
-      ++ti;
-      continue;
-      }
-
-    if ( this->m_Interpolator->IsInsideBuffer(transformedPoint) )
-      {
-      const RealType movingValue  = this->m_Interpolator->Evaluate(transformedPoint);
-      const RealType fixedValue   = ti.Get();
-      sff += fixedValue  * fixedValue;
-      smm += movingValue * movingValue;
-      sfm += fixedValue  * movingValue;
-      if ( this->m_SubtractMean )
-        {
-        sf += fixedValue;
-        sm += movingValue;
-        }
-      this->m_NumberOfPixelsCounted++;
-      }
-
-    ++ti;
     }
 
-  // Compute contributions to derivatives
-  ti.GoToBegin();
-  while ( !ti.IsAtEnd() )
-    {
-    index = ti.GetIndex();
+  RealType differential = std::accumulate( this->m_TD->m_ThreaderDerivativeD.begin(),
+                                           this->m_TD->m_ThreaderDerivativeD.end(),
+                                           itk::NumericTraits<AccumulateType>::ZeroValue() );
 
-    InputPointType inputPoint;
-    fixedImage->TransformIndexToPhysicalPoint(index, inputPoint);
-
-    if ( this->m_FixedImageMask && !this->m_FixedImageMask->IsInside(inputPoint) )
-      {
-      ++ti;
-      continue;
-      }
-
-    OutputPointType transformedPoint = this->m_Transform->TransformPoint(inputPoint);
-
-    if ( this->m_MovingImageMask && !this->m_MovingImageMask->IsInside(transformedPoint) )
-      {
-      ++ti;
-      continue;
-      }
-
-    if ( this->m_Interpolator->IsInsideBuffer(transformedPoint) )
-      {
-      const RealType movingValue  = this->m_Interpolator->Evaluate(transformedPoint);
-      const RealType fixedValue     = ti.Get();
-
-      const TransformJacobianType & jacobian =
-        this->m_Transform->GetJacobian(inputPoint);
-
-      // Get the gradient by NearestNeighboorInterpolation:
-      // which is equivalent to round up the point components.
-      typedef typename OutputPointType::CoordRepType CoordRepType;
-      typedef ContinuousIndex< CoordRepType, MovingImageType::ImageDimension >
-      MovingImageContinuousIndexType;
-
-      MovingImageContinuousIndexType tempIndex;
-      this->m_MovingImage->TransformPhysicalPointToContinuousIndex(transformedPoint, tempIndex);
-
-      typename MovingImageType::IndexType mappedIndex;
-      mappedIndex.CopyWithRound(tempIndex);
-
-      const GradientPixelType gradient =
-        this->GetGradientImage()->GetPixel(mappedIndex);
-
-      for ( unsigned int par = 0; par < ParametersDimension; par++ )
-        {
-        RealType sumF = NumericTraits< RealType >::Zero;
-        RealType sumM = NumericTraits< RealType >::Zero;
-        for ( unsigned int dim = 0; dim < dimension; dim++ )
-          {
-          const RealType differential = jacobian(dim, par) * gradient[dim];
-          sumF += fixedValue  * differential;
-          sumM += movingValue * differential;
-          if ( this->m_SubtractMean && this->m_NumberOfPixelsCounted > 0 )
-            {
-            sumF -= differential * sf / this->m_NumberOfPixelsCounted;
-            sumM -= differential * sm / this->m_NumberOfPixelsCounted;
-            }
-          }
-        derivativeF[par] += sumF;
-        derivativeM[par] += sumM;
-        }
-      }
-    ++ti;
-    }
 
   if ( this->m_SubtractMean && this->m_NumberOfPixelsCounted > 0 )
     {
     sff -= ( sf * sf / this->m_NumberOfPixelsCounted );
     smm -= ( sm * sm / this->m_NumberOfPixelsCounted );
     sfm -= ( sf * sm / this->m_NumberOfPixelsCounted );
+
+    for ( unsigned int i = 0; i < ParametersDimension; i++ )
+      {
+      derivativeF[i] -= differential * sf / this->m_NumberOfPixelsCounted;
+      derivativeM[i] -= differential * sm / this->m_NumberOfPixelsCounted;
+      }
     }
 
   const RealType denom = -1.0 * vcl_sqrt(sff * smm);
@@ -502,6 +371,7 @@ NormalizedCorrelationImageToImageMetric< TFixedImage, TMovingImage >
       }
     value = NumericTraits< MeasureType >::Zero;
     }
+
 }
 
 template< class TFixedImage, class TMovingImage >
