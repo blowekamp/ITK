@@ -268,7 +268,7 @@ MultiScaleHessianBasedMeasureImageFilter
   while ( scaleLevel <= m_NumberOfSigmaSteps )
     {
 
-    std::cout << "Computing measure for scale with sigma = " << m_CurrentSigma << std::endl;
+    itkDebugMacro( << "Computing measure for scale with sigma = " << m_CurrentSigma );
 
     m_HessianFilter->SetSigma(m_CurrentSigma);
 
