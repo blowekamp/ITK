@@ -87,6 +87,23 @@ protected:
 
   virtual void ThreadedProcessLabelObject( LabelObjectType * labelObject );
 
+
+  virtual void GenerateOutputInformation()
+  {
+    Superclass::GenerateOutputInformation();
+    OutputImageType* output = this->GetOutput();
+
+    if ( !output )
+      {
+      return;
+      }
+    if ( output->GetNumberOfComponentsPerPixel() != 3 )
+      {
+      output->SetNumberOfComponentsPerPixel( 3 );
+      }
+  }
+
+
 private:
   LabelMapToRGBImageFilter(const Self&); //purposely not implemented
   void operator=(const Self&); //purposely not implemented
