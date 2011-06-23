@@ -98,7 +98,7 @@ void
 ImageSink<TInputImage>
 ::Update( )
 {
-  if ( this->GetNumberOfOutputs() )
+  if ( this->GetNumberOfOutputs() && this->GetOutput(0) != NULL )
     {
     return this->Superclass::Update();
     }
