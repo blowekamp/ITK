@@ -90,6 +90,9 @@ protected:
   virtual void BeforeStreamedGenerateData( void ) {};
   virtual void AfterStreamedGenerateData( void ) {};
 
+
+  virtual void PropagateResetPipeline();
+
 private:
   /** An internal helper method that is not intended to be
    * overloaded. It should be considered part of the GenerateData

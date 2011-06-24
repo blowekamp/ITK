@@ -73,26 +73,8 @@ void StreamingProcessObject::StreamingUpdateOutputData( void )
       }
 
     //
-    try
-      {
-      this->StreamedGenerateData( piece );
-      }
-    catch( ProcessAborted & excp )
-      {
-      this->InvokeEvent( AbortEvent() );
-      this->ResetPipeline();
-      this->RestoreInputReleaseDataFlags();
-      throw excp;
-      }
-    catch( ... )
-      {
-      this->ResetPipeline();
-      this->RestoreInputReleaseDataFlags();
-      throw;
-      }
+    this->StreamedGenerateData( piece );
     }
-
-
 }
 
 void StreamingProcessObject::UpdateOutputData(DataObject *output)
@@ -138,19 +120,40 @@ void StreamingProcessObject::UpdateOutputData(DataObject *output)
   this->SetProgress(0.0);
   this->m_Updating = true;
 
-  /*
-   * Tell all Observers that the filter is starting
-   */
-  this->InvokeEvent( StartEvent() );
+  try
+    {
 
-  this->BeforeStreamedGenerateData();
+    /*
+     * Tell all Observers that the filter is starting
+     */
+    this->InvokeEvent( StartEvent() );
 
-  // loop over the NumberOfInputRequestedRegions
-  //
-  // dirve the pipeline for each chunk
-  this->StreamingUpdateOutputData( );
+    this->BeforeStreamedGenerateData();
 
-  this->AfterStreamedGenerateData();
+    // loop over the NumberOfInputRequestedRegions
+    //
+    // dirve the pipeline for each chunk
+    this->StreamingUpdateOutputData( );
+
+    this->AfterStreamedGenerateData();
+
+
+    }
+  catch( ProcessAborted & excp )
+    {
+    this->InvokeEvent( AbortEvent() );
+    this->ResetPipeline();
+    this->RestoreInputReleaseDataFlags();
+    throw excp;
+    }
+  catch (... )
+    {
+    std::cout << "CAUGHT and reset\n";
+    this->ResetPipeline();
+    this->RestoreInputReleaseDataFlags();
+    throw;
+    }
+
 
   /*
    * If we ended due to aborting, push the progress up to 1.0 (since
@@ -179,12 +182,13 @@ void StreamingProcessObject::UpdateOutputData(DataObject *output)
   /**
    * Restore the state of any input ReleaseDataFlags
    */
-  //this->RestoreInputReleaseDataFlags();
+  this->RestoreInputReleaseDataFlags();
 
   /**
    * Release any inputs if marked for release
    */
   this->ReleaseInputs();
+
 
   // Mark that we are no longer updating the data in this filter
   this->m_Updating = false;
@@ -228,5 +232,13 @@ void StreamingProcessObject::PropagateRequestedRegion(DataObject *output)
   // we don't call inputs PropagateRequestedRegion either
   // because the pipeline managed later
 }
+
+
+void StreamingProcessObject::PropagateResetPipeline()
+{
+  this->m_Updating = false;
+  this->Superclass::PropagateResetPipeline();
+}
+
 
 } // end namespace itk
