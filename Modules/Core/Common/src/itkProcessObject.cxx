@@ -621,6 +621,10 @@ ProcessObject
     {
     this->GetOutput(0)->ResetPipeline();
     }
+  else
+    {
+    this->PropagateResetPipeline();
+    }
 }
 
 void
