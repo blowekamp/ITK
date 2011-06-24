@@ -154,6 +154,7 @@ void
 ImageSink<TInputImage>
 ::GenerateNthInputRequestedRegion (unsigned int inputRequestedRegionNumber)
 {
+  // default to setting all input to largest possible region
   Superclass::GenerateInputRequestedRegion();
 
   InputImageType* inputPtr = const_cast< InputImageType * >( this->GetInput() );

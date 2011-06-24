@@ -27,6 +27,7 @@ namespace itk
 {
 
 /** \class ImageSink
+* \brief This is the class if you have big data!
 *
 * \todo Write somethng useful here :)
 *
@@ -34,7 +35,7 @@ namespace itk
 * \ingroup DataProcessing
 * \ingroup Streamed
 * \ingroup ITK-Common
-**/
+*/
 template <class TInputImage >
 class ITK_EXPORT ImageSink
   : public StreamingProcessObject
@@ -89,7 +90,9 @@ protected:
 
   virtual void StreamedGenerateData( unsigned int  inputRequestedRegionNumber);
 
-  virtual void ThreadedStreamedGenerateData( const InputImageRegionType &inputRegionForChunk, ThreadIdType ) = 0;
+  virtual void ThreadedStreamedGenerateData( const InputImageRegionType &inputRegionForChunk, ThreadIdType )
+  { // todo print warning that we are not overloaded when called
+  }
 
 
   /** Set the number of pieces to divide the input.  The upstream pipeline
