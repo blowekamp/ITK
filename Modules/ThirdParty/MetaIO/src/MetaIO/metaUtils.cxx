@@ -998,7 +998,7 @@ bool MET_SkipToVal(METAIO_STREAM::istream &fp)
     c = fp.get();
     }
 
-  while( !fp.eof() && ( c == MET_SeperatorChar || c == ':' || isspace(c) ) )
+  while( !fp.eof() && ( c == MET_SeperatorChar || c == ':' || isblank(c) ) )
     {
     c = fp.get();
     }
@@ -1054,12 +1054,15 @@ bool MET_Read(METAIO_STREAM::istream &fp,
   while(!fp.eof())
     {
     i = 0;
+
+    // find the start of name
     c = fp.get();
     while(!fp.eof() && c != MET_SeperatorChar && c != ':'
-          && (c == '\r' || c == '\n' || isspace(c)))
+          && isspace(c) )
       {
       c = fp.get();
       }
+    // save name up to separator or end of line
     while(!fp.eof() && c != MET_SeperatorChar && c != ':' && c != '\r' && c != '\n' && i<500)
       {
       s[i++] = c;
@@ -1072,8 +1075,9 @@ bool MET_Read(METAIO_STREAM::istream &fp,
     fp.putback(c);
     s[i] = '\0';
 
+    // trim white space on name
     i--;
-    while((s[i] == ' ' || s[i] == '\t') && i>0)
+    while( isblank(s[i]) && i>0)
       {
       s[i--] = '\0';
       }
