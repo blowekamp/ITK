@@ -1370,6 +1370,13 @@ bool MET_Write(METAIO_STREAM::ostream &fp,
         }
       case MET_STRING:
         {
+        if ( (*fieldIter)->length == 0 )
+          {
+            METAIO_STREAM::cerr << "Warning:";
+            METAIO_STREAM::cerr << "The field " << (*fieldIter)->name
+                                << "has zero length. Refusing to write empty string value.";
+            METAIO_STREAM::cerr << METAIO_STREAM::endl;
+          }
         fp << (*fieldIter)->name << " " << MET_SeperatorChar << " ";
         if((*fieldIter)->dependsOn >= 0)
           {
