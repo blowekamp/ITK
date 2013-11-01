@@ -197,6 +197,7 @@ macro(check_compiler_platform_flags)
      execute_process(COMMAND "${CMAKE_C_COMPILER}" --version
        OUTPUT_VARIABLE _version ERROR_VARIABLE _version)
 
+
      # -fopenmp breaks compiling the HDF5 library in shared library mode
      # on the OS X platform -- at least with gcc 4.2 from Xcode.
      set(compile_flag_lists CMAKE_C_FLAGS CMAKE_CXX_FLAGS
@@ -206,9 +207,9 @@ macro(check_compiler_platform_flags)
        CMAKE_CXX_FLAGS_RELEASE CMAKE_CXX_FLAGS_RELWITHDEBINFO)
      foreach(listname ${compile_flag_lists})
        if("${${listname}}" MATCHES ".*-fopenmp.*")
-         string(REPLACE "-fopenmp" "" tmpFlags "${${listname}}")
-         set(${listname} "${tmpFlags}")
-         message("-fopenmp causes incorrect compliation of HDF, removing from ${listname}")
+#         string(REPLACE "-fopenmp" "" tmpFlags "${${listname}}")
+#         set(${listname} "${tmpFlags}")
+         message("-fopenmp may cause incorrect compliation of HDF")
        endif()
      endforeach()
 
@@ -281,6 +282,12 @@ endmacro()#End the platform check function
 #-----------------------------------------------------------------------------
 #Check the set of warning flags the compiler supports
 check_compiler_warning_flags(C_WARNING_FLAGS CXX_WARNING_FLAGS)
+
+find_package( OpenMP )
+if ( OPENMP_FOUND )
+  set ( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}" )
+  set ( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}" )
+endif ( OPENMP_FOUND )
 
 # Append ITK warnings to the CMake flags.
 # We do not set them in ITK_REQUIRED FLAGS because all project which

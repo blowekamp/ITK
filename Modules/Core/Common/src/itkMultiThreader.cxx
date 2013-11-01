@@ -29,6 +29,7 @@
 #include "itkNumericTraits.h"
 #include <iostream>
 
+#include <omp.h>
 
 #if defined(ITK_USE_PTHREADS)
 #include "itkMultiThreaderPThreads.cxx"
@@ -235,7 +236,6 @@ void MultiThreader::SetMultipleMethod(ThreadIdType index, ThreadFunctionType f, 
 // Execute the method set as the SingleMethod on NumberOfThreads threads.
 void MultiThreader::SingleMethodExecute()
 {
-  ThreadIdType                 thread_loop = 0;
   ThreadProcessIDType process_id[ITK_MAX_THREADS];
 
   if ( !m_SingleMethod )
@@ -245,7 +245,62 @@ void MultiThreader::SingleMethodExecute()
     }
 
   // obey the global maximum number of threads limit
-  m_NumberOfThreads = std::min( m_GlobalMaximumNumberOfThreads, m_NumberOfThreads );
+  if ( m_NumberOfThreads > m_GlobalMaximumNumberOfThreads )
+    {
+    m_NumberOfThreads = m_GlobalMaximumNumberOfThreads;
+    }
+
+  //
+  // Enable nested parallel regions
+  //
+  if ( !omp_get_nested() )
+    {
+    // The OpenMP 2.5 spec is unclear of the omp_get_nested binding
+    // thread set. In one location it's the current thread, in another
+    // it says it is implementation defined. It'll have to do.
+
+#if !(_OPENMP >= 200805 )
+    // OpenMP 3.0 explicitly specifies that omp_set_nested works in
+    // nested parallel regions or tasks, where as for 2.5 its
+    // undefined.
+    if ( omp_in_parallel() )
+      {
+      itkWarningMacro( << "omp_set_nested() was not set in outter thread team. "
+                       << "Effect of setting omp_set_nested() from within parallel "
+                       << "region is implementation defined." );
+      }
+#endif
+      omp_set_nested(1);
+
+
+      // For implementations which don't support nested parallelism
+      // the following value will remain false.
+      if ( !omp_get_nested() )
+        {
+        itkExceptionMacro( << "Failure to set omp_get_nested when nexted "
+                           << "parallel regions are required." );
+        }
+    }
+
+#if (_OPENMP >= 200805 )
+  #warning need to add support for checking the nesting level
+#endif
+
+
+  // Initialize the m_ThreadInforArray
+  //
+  // While this method could be part of the multi-threaded region, it
+  // is not because of the potential for false-sharing between
+  // threads, or process cache thrashing due to the close proximity of
+  // the elements in the array.
+  //
+  for ( int thread_loop = 0; thread_loop < m_NumberOfThreads; ++thread_loop )
+    {
+    m_ThreadInfoArray[thread_loop].UserData    = m_SingleData;
+    m_ThreadInfoArray[thread_loop].NumberOfThreads = m_NumberOfThreads;
+    m_ThreadInfoArray[thread_loop].ThreadFunction = m_SingleMethod;
+    }
+
 
   // Spawn a set of threads through the SingleMethodProxy. Exceptions
   // thrown from a thread will be caught by the SingleMethodProxy. A
@@ -254,99 +309,44 @@ void MultiThreader::SingleMethodExecute()
   //
   // Thanks to Hannu Helminen for suggestions on how to catch
   // exceptions thrown by threads.
-  bool        exceptionOccurred = false;
+  int         exceptionOccurred = false;
   std::string exceptionDetails;
+
+#pragma omp parallel                            \
+  num_threads(this->m_NumberOfThreads)          \
+  reduction(|:exceptionOccurred)               \
+  default( shared )
+  {
+  bool localExceptionOccurred = false;
   try
     {
-    for ( thread_loop = 1; thread_loop < m_NumberOfThreads; thread_loop++ )
+    if ( omp_get_num_threads() != this->m_NumberOfThreads )
       {
-      m_ThreadInfoArray[thread_loop].UserData    = m_SingleData;
-      m_ThreadInfoArray[thread_loop].NumberOfThreads = m_NumberOfThreads;
-      m_ThreadInfoArray[thread_loop].ThreadFunction = m_SingleMethod;
-
-      process_id[thread_loop] =
-        this->DispatchSingleMethodThread(&m_ThreadInfoArray[thread_loop]);
+      itkExceptionMacro( "Failed to spawn the required number of threads\n"
+                         << " Requested " << this->m_NumberOfThreads
+                         << " but only got " << omp_get_num_threads() );
       }
+
+    int threadNum = omp_get_thread_num();
+    this->SingleMethodProxy ( reinterpret_cast< void * >( &m_ThreadInfoArray[threadNum] ) );
     }
   catch ( std::exception & e )
     {
     // get the details of the exception to rethrow them
-    exceptionDetails = e.what();
+#pragma omp critical
+   { exceptionDetails = e.what(); }
     // If creation of any thread failed, we must make sure that all
     // threads are correctly cleaned
-    exceptionOccurred = true;
+    localExceptionOccurred = true;
     }
   catch ( ... )
     {
     // If creation of any thread failed, we must make sure that all
     // threads are correctly cleaned
-    exceptionOccurred = true;
+    localExceptionOccurred = true;
     }
-
-  // Now, the parent thread calls this->SingleMethod() itself
-  //
-  //
-  try
-    {
-    m_ThreadInfoArray[0].UserData = m_SingleData;
-    m_ThreadInfoArray[0].NumberOfThreads = m_NumberOfThreads;
-    m_SingleMethod( (void *)( &m_ThreadInfoArray[0] ) );
-    }
-  catch ( ProcessAborted & excp )
-    {
-    // Need cleanup and rethrow ProcessAborted
-    // close down other threads
-    for ( thread_loop = 1; thread_loop < m_NumberOfThreads; thread_loop++ )
-      {
-      try
-        {
-        this->WaitForSingleMethodThread(process_id[thread_loop]);
-        }
-      catch ( ... )
-              {}
-      }
-    // rethrow
-    throw &excp;
-    }
-  catch ( std::exception & e )
-    {
-    // get the details of the exception to rethrow them
-    exceptionDetails = e.what();
-    // if this method fails, we must make sure all threads are
-    // correctly cleaned
-    exceptionOccurred = true;
-    }
-  catch ( ... )
-    {
-    // if this method fails, we must make sure all threads are
-    // correctly cleaned
-    exceptionOccurred = true;
-    }
-
-  // The parent thread has finished this->SingleMethod() - so now it
-  // waits for each of the other processes to exit
-  for ( thread_loop = 1; thread_loop < m_NumberOfThreads; thread_loop++ )
-    {
-    try
-      {
-      this->WaitForSingleMethodThread(process_id[thread_loop]);
-      if ( m_ThreadInfoArray[thread_loop].ThreadExitCode
-           != ThreadInfoStruct::SUCCESS )
-        {
-        exceptionOccurred = true;
-        }
-      }
-    catch ( std::exception & e )
-      {
-      // get the details of the exception to rethrow them
-      exceptionDetails = e.what();
-      exceptionOccurred = true;
-      }
-    catch ( ... )
-      {
-      exceptionOccurred = true;
-      }
-    }
+  exceptionOccurred |= localExceptionOccurred;
+  }
 
   if ( exceptionOccurred )
     {
@@ -357,6 +357,14 @@ void MultiThreader::SingleMethodExecute()
     else
       {
       itkExceptionMacro(<< "Exception occurred during SingleMethodExecute" << std::endl << exceptionDetails);
+      }
+    }
+
+  for ( int thread_loop = 0; thread_loop < m_NumberOfThreads; ++thread_loop )
+    {
+    if (m_ThreadInfoArray[thread_loop].ThreadExitCode != MultiThreader::ThreadInfoStruct::SUCCESS )
+      {
+      itkExceptionMacro("Exception occurred during SingleMethodExecute");
       }
     }
 }
@@ -379,20 +387,24 @@ MultiThreader
     {
     threadInfoStruct->ThreadExitCode =
       MultiThreader::ThreadInfoStruct::ITK_PROCESS_ABORTED_EXCEPTION;
+    throw;
     }
   catch ( ExceptionObject & )
     {
     threadInfoStruct->ThreadExitCode =
       MultiThreader::ThreadInfoStruct::ITK_EXCEPTION;
+    throw;
     }
   catch ( std::exception & )
     {
     threadInfoStruct->ThreadExitCode =
       MultiThreader::ThreadInfoStruct::STD_EXCEPTION;
+    throw;
     }
   catch ( ... )
     {
     threadInfoStruct->ThreadExitCode = MultiThreader::ThreadInfoStruct::UNKNOWN;
+    throw;
     }
 
   return ITK_THREAD_RETURN_VALUE;
