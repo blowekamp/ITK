@@ -1,0 +1,38 @@
+
+sudo: false
+
+language: cpp
+
+env:
+  - ExternalData_OBJECT_STORES=${HOME}/.ExternalData
+
+cache:
+  directories:
+    - ${ExternalData_OBJECT_STORES}
+
+before_install:
+  - brew update
+  - brew install ninja
+
+os:
+  - osx
+
+matrix:
+  include:
+    - osx_image: xcode9
+    - osx_image: xcode7.3
+    - osx_image: xcode7.2
+    - osx_image: xcode7.1
+    - osx_image: xcode7.0
+    - osx_image: xcode6.4
+
+compiler:
+  - clang
+
+before_script:
+  - cmake --version
+
+script:
+  - cd .. && mkdir -p build && cd build
+  - cmake -DBUILD_TESTING:BOOL=OFF -G Ninja  ../ITK
+  - ninja
