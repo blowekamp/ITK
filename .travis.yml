@@ -1,35 +1,46 @@
-
-sudo: false
-
 language: cpp
 
 env:
+  global:
   - ExternalData_OBJECT_STORES=${HOME}/.ExternalData
 
 cache:
-  directories:
-    - ${ExternalData_OBJECT_STORES}
+  - ccache
+  - directories:
+      - ${ExternalData_OBJECT_STORES}
 
 before_install:
   - brew update
-  - brew install ninja $( command -V cmake &>2 /dev/null || echo "cmake" )
-
-os:
-  - osx
+  - brew install ccache ninja $( command -V cmake &>2 /dev/null || echo "cmake" )
 
 matrix:
   include:
-    - osx_image: xcode8
-    - osx_image: xcode7.3
-    - osx_image: xcode7.2
-    - osx_image: xcode7.1
-    - osx_image: xcode7.0
-    - osx_image: xcode6.4
+    - os: osx
+      osx_image: xcode8
+    - os: osx
+      osx_image: xcode7.3
+      env: CMAKE_ARGUMENTS="-DUSE_COMPILER_HIDDEN_VISIBILITY:BOOL=OFF"
+    - os: osx
+      osx_image: xcode7.3
+    - os: osx
+      osx_image: xcode7.2
+    - os: osx
+      osx_image: xcode7.1
+    - os: osx
+      osx_image: xcode7.0
+    - os: osx
+      osx_image: xcode6.4
+
 
 before_script:
   - cmake --version
+  - if (command -V ccache&>2/dev/null); then ccache --max-size=150M && export "CXX=ccache ${CXX}"; fi
 
 script:
   - cd .. && mkdir -p build && cd build
-  - cmake -G Ninja  ../ITK
-  - ninja ITKCommon1TestDriver
+  - cmake ${CMAKE_ARGUMENTS} -DBUILD_SHARED_LIBS=ON -G Ninja  ../ITK
+  - ninja ITKIOTransformInsightLegacyTestDriver ITKData
+  - ctest -V -R itkIOTransformTxtTest
+
+after_script:
+  - ccache --show-stats
