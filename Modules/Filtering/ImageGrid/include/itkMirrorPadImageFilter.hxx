@@ -32,8 +32,8 @@ namespace itk
  * and size (where the current region and maximum region for each dimension
  * is encoded in regIndices and regLimit), choose the next output region.
  */
-template< typename TInputImage, typename TOutputImage, bool VEnableExponentialDecay >
-int MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
+template< typename TInputImage, typename TOutputImage >
+int MirrorPadImageFilter< TInputImage, TOutputImage >
 ::GenerateNextOutputRegion(long *regIndices, long *regLimit,
                            std::vector< long > *indices,
                            std::vector< long > *sizes,
@@ -88,8 +88,8 @@ int MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
  * and size (where the current region and maximum region for each dimension
  * is encoded in regIndices and regLimit), choose the next input region.
  */
-template< typename TInputImage, typename TOutputImage, bool VEnableExponentialDecay >
-int MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
+template< typename TInputImage, typename TOutputImage >
+int MirrorPadImageFilter< TInputImage, TOutputImage >
 ::GenerateNextInputRegion(long *regIndices, long *regLimit,
                           std::vector< long > *indices,
                           std::vector< long > *sizes,
@@ -145,9 +145,9 @@ int MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
  * a way to adjust width of the area while forcing alignment to the
  * start or end location.
  */
-template< typename TInputImage, typename TOutputImage, bool VEnableExponentialDecay >
+template< typename TInputImage, typename TOutputImage >
 int
-MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
+MirrorPadImageFilter< TInputImage, TOutputImage >
 ::FindRegionsInArea(long start, long end, long size, long offset)
 {
   int  result = 1;
@@ -174,15 +174,17 @@ MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
  * Convert from the output index to the input index taking
  * into consideration mirrored and normal regions.
  */
-template< typename TInputImage, typename TOutputImage, bool VEnableExponentialDecay >
+template< typename TInputImage, typename TOutputImage >
+template< bool VEnableExponentialDecay >
 void
-MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
-::ConvertOutputIndexToInputIndex(OutputImageIndexType & outputIndex,
+MirrorPadImageFilter< TInputImage, TOutputImage >
+::ConvertOutputIndexToInputIndex(
+                                 OutputImageIndexType & outputIndex,
                                  InputImageIndexType & inputIndex,
                                  OutputImageRegionType & outputRegion,
                                  InputImageRegionType & inputRegion,
                                  int *oddRegionArray,
-                                 IndexValueType & distanceFromEdge)
+                                 double & outDecayFactor )
 {
   unsigned int dimCtr;
   long         a, b, c; // Output region goes from a to a+b-1
@@ -190,7 +192,7 @@ MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
   OutputImageIndexType outputRegionStart = outputRegion.GetIndex();
   InputImageIndexType  inputRegionStart = inputRegion.GetIndex();
   InputImageSizeType   inputSizes = inputRegion.GetSize();
-  distanceFromEdge = 0;
+  double distanceFromEdge = 0.0;
 
   for ( dimCtr = 0; dimCtr < ImageDimension; dimCtr++ )
     {
@@ -206,17 +208,30 @@ MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
       {
       inputIndex[dimCtr] =  outputIndex[dimCtr] - a + c;
       }
-    distanceFromEdge += (std::abs(outputIndex[dimCtr] - inputIndex[dimCtr]) + 1) / 2;
+    if(VEnableExponentialDecay)
+      {
+      distanceFromEdge += (std::abs(outputIndex[dimCtr] - inputIndex[dimCtr]) + 1) / 2;
+      }
   }
+
+  if (VEnableExponentialDecay)
+    {
+    outDecayFactor = std::pow(this->m_DecayBase, distanceFromEdge);
+    }
+  else
+    {
+    outDecayFactor = 1.0;
+    }
 }
+
 
 /**
  * Decide whether test falls within an odd or even number
  * of size regions from base.
  */
-template< typename TInputImage, typename TOutputImage, bool VEnableExponentialDecay >
+template< typename TInputImage, typename TOutputImage >
 int
-MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
+MirrorPadImageFilter< TInputImage, TOutputImage >
 ::RegionIsOdd(long base, long test, long size)
 {
   long oddness;
@@ -245,9 +260,9 @@ MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
  * side of this region.  The algorithmic complications are necessary
  * to support the streaming interface and multithreading.
  */
-template< typename TInputImage, typename TOutputImage, bool VEnableExponentialDecay >
+template< typename TInputImage, typename TOutputImage >
 int
-MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
+MirrorPadImageFilter< TInputImage, TOutputImage >
 ::BuildInterRegions(std::vector< long > & inputRegionStart,
                     std::vector< long > & outputRegionStart,
                     std::vector< long > & inputRegionSizes,
@@ -300,9 +315,9 @@ MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
  * complications are necessary to support the streaming interface
  * and multithreading.
  */
-template< typename TInputImage, typename TOutputImage, bool VEnableExponentialDecay >
+template< typename TInputImage, typename TOutputImage >
 int
-MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
+MirrorPadImageFilter< TInputImage, TOutputImage >
 ::BuildPreRegions(std::vector< long > & inputRegionStart,
                   std::vector< long > & outputRegionStart,
                   std::vector< long > & inputRegionSizes,
@@ -375,9 +390,9 @@ MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
  * complications are necessary to support the streaming interface
  * and multithreading.
  */
-template< typename TInputImage, typename TOutputImage, bool VEnableExponentialDecay >
+template< typename TInputImage, typename TOutputImage >
 int
-MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
+MirrorPadImageFilter< TInputImage, TOutputImage >
 ::BuildPostRegions(std::vector< long > & inputRegionStart,
                    std::vector< long > & outputRegionStart,
                    std::vector< long > & inputRegionSizes,
@@ -448,9 +463,9 @@ MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
  * \sa PadImageFilter::GenerateInputRequestedRegion()
  * \sa ProcessObject::GenerateInputRequestedRegion()
  */
-template< typename TInputImage, typename TOutputImage, bool VEnableExponentialDecay >
+template< typename TInputImage, typename TOutputImage >
 void
-MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
+MirrorPadImageFilter< TInputImage, TOutputImage >
 ::GenerateInputRequestedRegion()
 {
   unsigned int dimCtr;
@@ -621,9 +636,9 @@ MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
 /**
  *
  */
-template< typename TInputImage, typename TOutputImage, bool VEnableExponentialDecay >
+template< typename TInputImage, typename TOutputImage >
 void
-MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
+MirrorPadImageFilter< TInputImage, TOutputImage >
 ::ThreadedGenerateData(const OutputImageRegionType & outputRegionForThread,
                        ThreadIdType threadId)
 {
@@ -637,8 +652,8 @@ MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
   itkDebugMacro(<< "Actually executing");
 
   // Get the input and output pointers
-  typename Superclass::InputImageConstPointer inputPtr = this->GetInput();
-  typename Superclass::OutputImagePointer outputPtr = this->GetOutput();
+  const InputImageType *inputPtr = this->GetInput();
+  OutputImageType *outputPtr = this->GetOutput();
 
   // Define a few indices that will be used to translate from an input pixel
   // to an output pixel
@@ -781,27 +796,37 @@ MirrorPadImageFilter< TInputImage, TOutputImage, VEnableExponentialDecay >
 
       OutputIterator outIt = OutputIterator(outputPtr, outputRegion);
       InputIterator  inIt  = InputIterator(inputPtr, inputRegion);
-      IndexValueType distance = 0;
+      double decayFactor = 1.0;
 
       // Do the actual copy of the input pixels to the output
       // pixels here.
       for (; !outIt.IsAtEnd(); ++outIt, i++, ++inIt )
         {
         currentOutputIndex = outIt.GetIndex();
-        this->ConvertOutputIndexToInputIndex(currentOutputIndex,
-                                             currentInputIndex,
-                                             outputRegion,
-                                             inputRegion,
-                                             oddRegionArray,
-                                             distance);
+        if (m_DecayBase == 1.0)
+          {
+          this->ConvertOutputIndexToInputIndex<false>(currentOutputIndex,
+                                                      currentInputIndex,
+                                                      outputRegion,
+                                                      inputRegion,
+                                                      oddRegionArray,
+                                                      decayFactor );
+          }
+        else
+          {
+          // call with computation for decay factor
+          this->ConvertOutputIndexToInputIndex<true>(currentOutputIndex,
+                                                     currentInputIndex,
+                                                     outputRegion,
+                                                     inputRegion,
+                                                     oddRegionArray,
+                                                     decayFactor);
+          }
+
         inIt.SetIndex(currentInputIndex);
 
-        typename OutputImageType::PixelType outVal = inIt.Get();
-        this->Decay(outVal, distance); //Decay is a syntactic workaround for:
-        //if constexpr(VEnableExponentialDecay)
-        //  {
-        //  outVal *= std::pow(m_DecayBase, distance);
-        //  }
+        using RealPixelType = typename  NumericTraits<typename InputImageType::PixelType>::RealType
+        const typename OutputImageType::PixelType outVal( RealPixelType(inIt.Get()) * decayFactor );
 
         outIt.Set( outVal );
         progress.CompletedPixel();

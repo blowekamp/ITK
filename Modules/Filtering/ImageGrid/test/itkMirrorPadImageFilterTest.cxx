@@ -24,45 +24,29 @@
 
 namespace
 {
-template< typename OutPixelType >
+template< typename PixelType >
 int RunTest( int argc, char* argv[] )
 {
   constexpr unsigned int Dimension = 2;
-  using InputImagePixelType = unsigned char;
-  using InImageType = itk::Image< InputImagePixelType, Dimension >;
+  using InImageType = itk::Image< PixelType, Dimension >;
   using ReaderType = itk::ImageFileReader< InImageType >;
 
-  ReaderType::Pointer reader = ReaderType::New();
+  typename ReaderType::Pointer reader = ReaderType::New();
   reader->SetFileName( argv[2] );
   TRY_EXPECT_NO_EXCEPTION( reader->Update() );
 
-  using OutImageType = itk::Image< OutPixelType, Dimension>;
+  using OutImageType = itk::Image< PixelType, Dimension>;
   using WriterType = itk::ImageFileWriter< OutImageType >;
   typename WriterType::Pointer writer = WriterType::New();
   writer->SetFileName( argv[3] );
 
-  using MirrorNED = itk::MirrorPadImageFilter< InImageType, OutImageType, false >;
-  using MirrorWED = itk::MirrorPadImageFilter< InImageType, OutImageType, true >;
-  using PadType = typename MirrorWED::Superclass;
+  using Mirror = itk::MirrorPadImageFilter< InImageType, OutImageType >;
+  typename Mirror::Pointer filter = Mirror::New();
 
-  typename MirrorNED::Pointer mirrorNED = MirrorNED::New();
-  typename MirrorWED::Pointer mirrorWED = MirrorWED::New();
-  typename PadType::Pointer filter;
-
-  double decayFactor = mirrorWED->GetDecayBase();
   if( argc > 4 )
     {
-    decayFactor = atof( argv[4] );
-    mirrorWED->SetDecayBase( atof( argv[4] ) );
-    }
-
-  if (argc > 4 && decayFactor > 0.0 && decayFactor < 1.0)
-    {
-    filter = mirrorWED; //use version with exponential decay
-    }
-  else
-    {
-    filter = mirrorNED; //no exponential decay
+    double decayFactor = atof( argv[4] );
+    filter->SetDecayBase( decayFactor );
     }
 
   typename OutImageType::SizeType pad;
@@ -105,6 +89,14 @@ int itkMirrorPadImageFilterTest( int argc, char* argv[] )
   else if( !strcmp( argv[1], "uchar" ) )
     {
     testStatus = RunTest< unsigned char >( argc, argv );
+    }
+  else if( !strcmp( argv[1], "rgb" ) )
+    {
+    testStatus = RunTest< itk::RGBPixel<unsigned char> >( argc, argv );
+    }
+  else if( !strcmp( argv[1], "complex" ) )
+    {
+    testStatus = RunTest< std::complex<float> >( argc, argv );
     }
   else
     {
