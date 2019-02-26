@@ -2,8 +2,8 @@
 
 trigger:
   branches:
-    exclude:
-    - "*"
+    include:
+    - master
 pr: none
 
 variables:
