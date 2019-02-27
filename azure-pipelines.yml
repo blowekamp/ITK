@@ -34,7 +34,7 @@ jobs:
         workingDirectory: $(Agent.BuildDirectory)
         displayName: 'Download dashboard script and testing data'
       - bash: |
-          ctest -S ${BUILD_SOURCESDIRECTORY}/azure.cmake
+          ctest -VV -S ${BUILD_SOURCESDIRECTORY}/azure.cmake
         displayName: Build and test with coverage
         env:
           CTEST_BUILD_CONFIGURATION: Debug
