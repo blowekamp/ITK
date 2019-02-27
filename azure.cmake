@@ -14,9 +14,11 @@ function(set_from_env var env_var)
     if (ARGV2 STREQUAL "REQUIRED")
       message(FATAL_ERROR "Required environment variable \"${env_var}\" not defined.")
     elseif (ARGV2 STREQUAL "DEFAULT")
+      message("Setting \"${var}\" to default \"${ARGV3}\".")
       set(${var} ${ARGV3} PARENT_SCOPE)
     endif()
   else()
+    message("Setting \"${var}\" to \"$ENV{${env_var}}\" from environment.")
     set(${var} $ENV{${env_var}} PARENT_SCOPE)
   endif()
 endfunction()
@@ -74,13 +76,15 @@ if(NOT CTEST_BUILD_NAME)
     "$ENV{AGENT_OS}-Build$ENV{BUILD_BUILDID}${pr}${branch}${wrapping}")
 endif()
 
-set(dashboard_cache "
+set(_dashboard_cache "
     BUILD_EXAMPLES:BOOL=${BUILD_EXAMPLES}
     BUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
     ITK_BUILD_DEFAULT_MODULES:BOOL=${ITK_BUILD_DEFAULT_MODULES}
     ITKGroup_Core:BOOL=ON
     ITK_WRAP_PYTHON:BOOL=${ITK_WRAP_PYTHON}
 " )
+
+set_from_env(dashboard_cache "CTEST_CACHE" DEFAULT ${_dashboard_cache})
 
 set_from_env(DASHBOARD_BRANCH_DIRECTORY "DASHBOARD_BRANCH_DIRECTORY" REQUIRED)
 
