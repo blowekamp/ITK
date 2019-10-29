@@ -663,7 +663,7 @@ SpatialObject< TDimension >
 
 /** Return the Modified time of the LocalToGlobalTransform */
 template< unsigned int TDimension >
-unsigned long
+ModifiedTimeType
 SpatialObject< TDimension >
 ::GetTransformMTime(void)
 {
@@ -672,7 +672,7 @@ SpatialObject< TDimension >
 
 /** Return the Modified time of the GlobalToLocalTransform */
 template< unsigned int TDimension >
-unsigned long
+ModifiedTimeType
 SpatialObject< TDimension >
 ::GetWorldTransformMTime(void)
 {
