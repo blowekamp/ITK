@@ -28,7 +28,7 @@
 #ifndef itkGDCMImageIO_h
 #define itkGDCMImageIO_h
 
-#define ITKIO_DEPRECATED_GDCM1_API
+// #define ITKIO_DEPRECATED_GDCM1_API
 
 #include "itkImageIOBase.h"
 #include "ITKIOGDCMExport.h"
