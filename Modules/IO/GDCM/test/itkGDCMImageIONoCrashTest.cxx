@@ -73,8 +73,8 @@ int itkGDCMImageIONoCrashTest(int ac, char* av[])
     << gdcmImageIO->GetFrameOfReferenceInstanceUID() << std::endl;
   std::cout << "KeepOriginalUID: "
     << gdcmImageIO->GetKeepOriginalUID() << std::endl;
-  std::cout << "LoadSequences: "
-    << gdcmImageIO->GetLoadSequences() << std::endl;
+//  std::cout << "LoadSequences: "
+//    << gdcmImageIO->GetLoadSequences() << std::endl;
   std::cout << "LoadPrivateTags: "
     << gdcmImageIO->GetLoadPrivateTags() << std::endl;
   std::cout << "CompressionType: "
