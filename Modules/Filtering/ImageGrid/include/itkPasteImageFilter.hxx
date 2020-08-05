@@ -32,8 +32,9 @@ PasteImageFilter<TInputImage, TSourceImage, TOutputImage>::PasteImageFilter()
   // #0 "FixedImage" required
   Self::SetPrimaryInputName("DestinationImage");
 
-  // #2 "SourceImage" required
-  Self::AddRequiredInputName("SourceImage");
+  // #2 "SourceImage"
+  Self::AddOptionalInputName("SourceImage");
+  Self::AddOptionalInputName("Constant");
 
   this->InPlaceOff();
   m_DestinationIndex.Fill(0);
@@ -54,13 +55,16 @@ PasteImageFilter<TInputImage, TSourceImage, TOutputImage>::GenerateInputRequeste
   SourceImagePointer sourcePtr = const_cast<SourceImageType *>(this->GetSourceImage());
   OutputImagePointer outputPtr = this->GetOutput();
 
-  if (!destPtr || !sourcePtr || !outputPtr)
+  if (!destPtr || !outputPtr)
   {
     return;
   }
 
-  // Second input must include the SourceRegion
-  sourcePtr->SetRequestedRegion(m_SourceRegion);
+  if (sourcePtr)
+  {
+    // Second input must include the SourceRegion
+    sourcePtr->SetRequestedRegion(m_SourceRegion);
+  }
 
   // First input must match the output requested region
   destPtr->SetRequestedRegion(outputPtr->GetRequestedRegion());
@@ -160,11 +164,31 @@ PasteImageFilter<TInputImage, TSourceImage, TOutputImage>::DynamicThreadedGenera
   }
   else if (useOnlySource)
   {
-    // Paste region completely overlaps the output region
-    // for this thread, so copy data from the second input
-    // to the output
-    ImageAlgorithm::Copy(sourcePtr, outputPtr, sourceRegionInSourceImageCropped, outputRegionForThread);
-    progress.Completed(outputRegionForThread.GetNumberOfPixels());
+
+    if (sourcePtr)
+    {
+      // Paste region completely overlaps the output region
+      // for this thread, so copy data from the second input
+      // to the output
+      ImageAlgorithm::Copy(sourcePtr, outputPtr, sourceRegionInSourceImageCropped, outputRegionForThread);
+      progress.Completed(outputRegionForThread.GetNumberOfPixels());
+    }
+    else
+    {
+      SourceImagePixelType sourceValue = this->GetConstant();
+
+      ImageScanlineIterator<TOutputImage> outputIt(outputPtr, sourceRegionInDestinationImageCropped);
+      while (!outputIt.IsAtEnd())
+      {
+        while (!outputIt.IsAtEndOfLine())
+        {
+          outputIt.Set(sourceValue);
+          ++outputIt;
+        }
+        outputIt.NextLine();
+        progress.Completed(outputRegionForThread.GetSize()[0]);
+      }
+    }
   }
   else
   {
@@ -188,10 +212,30 @@ PasteImageFilter<TInputImage, TSourceImage, TOutputImage>::DynamicThreadedGenera
                          sourceRegionInDestinationImageCropped.GetNumberOfPixels());
     }
 
-    // copy the cropped source region to output
-    ImageAlgorithm::Copy(sourcePtr, outputPtr, sourceRegionInSourceImageCropped, sourceRegionInDestinationImageCropped);
+    if (sourcePtr)
+    {
+      // copy the cropped source region to output
+      ImageAlgorithm::Copy(
+        sourcePtr, outputPtr, sourceRegionInSourceImageCropped, sourceRegionInDestinationImageCropped);
 
-    progress.Completed(sourceRegionInDestinationImageCropped.GetNumberOfPixels());
+      progress.Completed(sourceRegionInDestinationImageCropped.GetNumberOfPixels());
+    }
+    else
+    {
+      SourceImagePixelType sourceValue = this->GetConstant();
+
+      ImageScanlineIterator<TOutputImage> outputIt(outputPtr, sourceRegionInDestinationImageCropped);
+      while (!outputIt.IsAtEnd())
+      {
+        while (!outputIt.IsAtEndOfLine())
+        {
+          outputIt.Set(sourceValue);
+          ++outputIt;
+        }
+        outputIt.NextLine();
+        progress.Completed(outputRegionForThread.GetSize()[0]);
+      }
+    }
   }
 }
 

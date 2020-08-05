@@ -20,20 +20,24 @@
 
 #include "itkInPlaceImageFilter.h"
 #include "itkSmartPointer.h"
+#include "itkSimpleDataObjectDecorator.h"
 
 namespace itk
 {
 /** \class PasteImageFilter
- * \brief Paste an image into another image
+ * \brief Paste an image (or a constant value) into another image
  *
- * PasteImageFilter allows you to take a section of one image and
- * paste into another image.  The SetDestinationIndex() method
- * prescribes where in the first input to start pasting data from the
- * second input.  The SetSourceRegion method prescribes the section of
+ * PasteImageFilter allows a region in a destination image to be filled with a source image or a constant pixel value.
+ * The SetDestinationIndex() method
+ * prescribes where in the destination input to start pasting data from the
+ * source input.  The SetSourceRegion method prescribes the section of
  * the second image to paste into the first. If the output requested
  * region does not include the SourceRegion after it has been
  * repositioned to DestinationIndex, then the output will just be
  * a copy of the input.
+ *
+ * This filter support running "InPlace" to efficiently reuses the desination image buffer for the output, removing the
+ * need to copy the destination pixels to the output.
  *
  * The two inputs and output image will have the same pixel type.
  *
@@ -90,6 +94,7 @@ public:
   using InputImageSizeType = typename InputImageType::SizeType;
   using SourceImageIndexType = typename SourceImageType::IndexType;
   using SourceImageSizeType = typename SourceImageType::SizeType;
+  using DecoratedSourceImagePixelType = SimpleDataObjectDecorator<SourceImagePixelType>;
 
   /** ImageDimension enumeration */
   static constexpr unsigned int InputImageDimension = InputImageType::ImageDimension;
@@ -115,6 +120,10 @@ public:
    * pasted over the destination image. */
   itkSetInputMacro(SourceImage, SourceImageType);
   itkGetInputMacro(SourceImage, SourceImageType);
+
+  itkSetDecoratedInputMacro(Constant, SourceImagePixelType);
+  itkGetDecoratedInputMacro(Constant, SourceImagePixelType);
+
 
   /** PasteImageFilter needs to set the input requested regions for its
    * inputs.  The first input's requested region will be set to match
