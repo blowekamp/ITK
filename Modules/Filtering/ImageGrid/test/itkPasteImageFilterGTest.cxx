@@ -47,6 +47,7 @@ protected:
     using HashFilter = itk::Testing::HashImageFilter<TImageType>;
     typename HashFilter::Pointer hasher = HashFilter::New();
     hasher->SetInput(image);
+    hasher->InPlaceOff();
     hasher->Update();
     return hasher->GetHash();
   }
@@ -182,6 +183,8 @@ TEST_F(PasteFixture, ConstantPaste3_2)
   filter->UpdateLargestPossibleRegion();
   EXPECT_EQ("dfdbfe702adeccece580c5e0795d8f0a", MD5Hash(filter->GetOutput()));
 
+  EXPECT_EQ(0, filter->GetOutput()->GetPixel({ 0, 0, 0 }));
+
 
   filter->SetDestinationIndex({ 11, 13, 17 });
   filter->SetDestinationSkipAxes({ false, false, true });
@@ -280,14 +283,13 @@ TEST_F(PasteFixture, Paste3_2)
   auto inputImage = Utils::CreateImage(25);
   filter->SetDestinationImage(inputImage);
 
+  EXPECT_THROW(filter->VerifyPreconditions(), itk::ExceptionObject);
 
   auto sourceImage = Utils::CreateSourceImage(5);
   sourceImage->FillBuffer(constantValue);
   filter->SetSourceImage(sourceImage);
 
-
-  filter->SetNumberOfWorkUnits(50);
-
+  filter->SetNumberOfWorkUnits(25);
 
   filter->SetDestinationIndex({ 11, 13, 17 });
   filter->SetSourceRegion(sourceImage->GetLargestPossibleRegion());
@@ -297,11 +299,10 @@ TEST_F(PasteFixture, Paste3_2)
   EXPECT_EQ("753e433a43ab8fcf3d2ef0f8c78aef35", MD5Hash(filter->GetOutput()));
   EXPECT_EQ(0, filter->GetOutput()->GetPixel({ 12, 13, 17 }));
 
-
   filter->SetDestinationSkipAxes({ false, true, false });
   filter->UpdateLargestPossibleRegion();
-  EXPECT_EQ("44bd0a10b89c58fd306beee6148fdb4d", MD5Hash(filter->GetOutput()));
   EXPECT_EQ(0, filter->GetOutput()->GetPixel({ 11, 14, 17 }));
+  EXPECT_EQ("44bd0a10b89c58fd306beee6148fdb4d", MD5Hash(filter->GetOutput()));
 
 
   filter->SetDestinationSkipAxes({ false, false, true });

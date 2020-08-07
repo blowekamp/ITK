@@ -25,6 +25,26 @@
 
 namespace itk
 {
+
+// Needed here for usage in the SetMacro
+namespace
+{
+template <typename T, std::size_t D>
+std::ostream &
+operator<<(std::ostream & os, const std::array<T, D> & v)
+{
+  if (v.empty())
+  {
+    return os << "()";
+  }
+
+  os << "(";
+  std::copy(v.begin(), v.end() - 1, std::ostream_iterator<T>(os, ", "));
+  return os << v.back() << ")";
+}
+} // namespace
+
+
 /** \class PasteImageFilter
  * \brief Paste an image (or a constant value) into another image.
  *
@@ -32,13 +52,17 @@ namespace itk
  * The SetDestinationIndex() method
  * prescribes where in the destination input to start pasting data from the
  * source input.  The SetSourceRegion method prescribes the section of
- * the second image to paste into the first. If the output requested
+ * the second image to paste into the first. When a constant pixel value is set, the SourceRegion describes the size
+ * of the region filled. If the output requested
  * region does not include the SourceRegion after it has been
  * repositioned to DestinationIndex, then the output will just be
  * a copy of the input.
  *
  * This filter support running "InPlace" to efficiently reuses the destination image buffer for the output, removing the
  * need to copy the destination pixels to the output.
+ *
+ * When the source image is lower dimension than the destination image than the DestinationSkipAxes parameter specifies
+ * which axes in the destination image are set to 1 when copying the region o
  *
  * The two inputs and output image will have the same pixel type.
  *
@@ -97,7 +121,6 @@ public:
   using SourceImageSizeType = typename SourceImageType::SizeType;
   using DecoratedSourceImagePixelType = SimpleDataObjectDecorator<SourceImagePixelType>;
 
-
   using InputSkipAxesArrayType = std::array<bool, InputImageType::ImageDimension>;
 
 
@@ -111,6 +134,14 @@ public:
   itkSetMacro(DestinationIndex, InputImageIndexType);
   itkGetConstMacro(DestinationIndex, InputImageIndexType);
 
+  /** Set/Get the an array describing which axes in the destination image to skip
+   *
+   * The axes with true values are set to 1, to fill the difference between the dimension of the input and source image.
+   * The number of true value in DestinationSkipAxes plus the DestinationImageDimension must equal the
+   * InputImageDimension.
+   *
+   * By default this array contains SourceImageDimension false values followed filled with values for the remainder.
+   */
   itkSetMacro(DestinationSkipAxes, InputSkipAxesArrayType);
   itkGetConstMacro(DestinationSkipAxes, InputSkipAxesArrayType);
 
@@ -130,6 +161,10 @@ public:
   itkSetInputMacro(SourceImage, SourceImageType);
   itkGetInputMacro(SourceImage, SourceImageType);
 
+  /** Set/Get a constant value to fill the destination region.
+   *
+   * This input is an alternative input to the SourceImage.
+   */
   itkSetDecoratedInputMacro(Constant, SourceImagePixelType);
   itkGetDecoratedInputMacro(Constant, SourceImagePixelType);
 

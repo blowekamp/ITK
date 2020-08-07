@@ -27,24 +27,6 @@ namespace itk
 {
 
 
-namespace
-{
-template <typename T, std::size_t D>
-std::ostream &
-operator<<(std::ostream & os, const std::array<T, D> & v)
-{
-  if (v.empty())
-  {
-    return os << "()";
-  }
-
-  os << "(";
-  std::copy(v.begin(), v.end() - 1, std::ostream_iterator<T>(os, ", "));
-  return os << v.back() << ")";
-}
-} // namespace
-
-
 template <typename TInputImage, typename TSourceImage, typename TOutputImage>
 PasteImageFilter<TInputImage, TSourceImage, TOutputImage>::PasteImageFilter()
 {
@@ -100,6 +82,15 @@ void
 PasteImageFilter<TInputImage, TSourceImage, TOutputImage>::VerifyPreconditions() const
 {
   Superclass::VerifyPreconditions();
+
+
+  auto sourceInput = this->GetSourceImage();
+  auto constantInput = this->GetConstantInput();
+
+  if (sourceInput == nullptr && constantInput == nullptr)
+  {
+    itkExceptionMacro("The Source or the Constant input are required.")
+  }
 
 
   auto numberSkippedAxis = std::accumulate(m_DestinationSkipAxes.begin(), m_DestinationSkipAxes.end(), int(0));
@@ -321,8 +312,9 @@ PasteImageFilter<TInputImage, TSourceImage, TOutputImage>::PrintSelf(std::ostrea
 
   os << indent << "DestinationIndex: " << m_DestinationIndex << std::endl;
   os << indent << "DestinationSkipAxes: " << m_DestinationSkipAxes << std::endl;
-  os << indent.GetNextIndent() << "PresumedDestinationSize: " << this->GetPresumedDestinationSize() << std::endl;
-  os << indent << "SourceRegion: " << m_SourceRegion << std::endl;
+  os << indent << "PresumedDestinationSize: " << this->GetPresumedDestinationSize() << std::endl;
+  os << indent << "SourceRegion:" << std::endl;
+  m_SourceRegion.Print(os, indent.GetNextIndent());
 }
 } // end namespace itk
 
