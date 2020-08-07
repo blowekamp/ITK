@@ -121,7 +121,7 @@ public:
   using SourceImageSizeType = typename SourceImageType::SizeType;
   using DecoratedSourceImagePixelType = SimpleDataObjectDecorator<SourceImagePixelType>;
 
-  using InputSkipAxesArrayType = std::array<bool, InputImageType::ImageDimension>;
+  using InputSkipAxesArrayType = FixedArray<bool, InputImageType::ImageDimension>;
 
 
   /** ImageDimension enumeration */

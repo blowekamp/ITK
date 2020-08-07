@@ -165,8 +165,10 @@ TEST_F(PasteFixture, ConstantPaste)
 TEST_F(PasteFixture, ConstantPaste3_2)
 {
   using Utils = FixtureUtilities<itk::Image<int, 3>, itk::Image<int, 2>>;
-
+  using SkipType = typename Utils::FilterType::InputSkipAxesArrayType;
   auto filter = Utils::FilterType::New();
+
+
   auto inputImage = Utils::CreateImage(100);
 
   constexpr int constantValue = -23;
@@ -178,7 +180,7 @@ TEST_F(PasteFixture, ConstantPaste3_2)
   filter->SetDestinationImage(inputImage);
 
   filter->SetDestinationIndex({ 11, 13, 17 });
-  filter->SetDestinationSkipAxes({ true, false, false });
+  filter->SetDestinationSkipAxes(SkipType({ true, false, false }));
   filter->SetSourceRegion(Utils::SourceSizeType{ 5, 6 });
   filter->UpdateLargestPossibleRegion();
   EXPECT_EQ("dfdbfe702adeccece580c5e0795d8f0a", MD5Hash(filter->GetOutput()));
@@ -187,20 +189,20 @@ TEST_F(PasteFixture, ConstantPaste3_2)
 
 
   filter->SetDestinationIndex({ 11, 13, 17 });
-  filter->SetDestinationSkipAxes({ false, false, true });
+  filter->SetDestinationSkipAxes(SkipType({ false, false, true }));
   filter->SetSourceRegion(Utils::SourceSizeType{ 5, 6 });
   filter->UpdateLargestPossibleRegion();
   EXPECT_EQ("7bca1328ead4ab2c6b89e1cdd1e3fdad", MD5Hash(filter->GetOutput()));
 
   filter->SetDestinationIndex({ 11, 13, 17 });
-  filter->SetDestinationSkipAxes({ false, false, true });
+  filter->SetDestinationSkipAxes(SkipType({ false, false, true }));
   filter->SetSourceRegion(Utils::SourceSizeType{ 5, 6 });
   filter->UpdateLargestPossibleRegion();
   EXPECT_EQ("7bca1328ead4ab2c6b89e1cdd1e3fdad", MD5Hash(filter->GetOutput()));
 
 
   filter->SetDestinationIndex({ 11, 13, 17 });
-  filter->SetDestinationSkipAxes({ true, false, false });
+  filter->SetDestinationSkipAxes(SkipType({ true, false, false }));
   filter->SetSourceRegion(Utils::SourceSizeType{ 1, 1 });
   filter->UpdateLargestPossibleRegion();
   EXPECT_EQ("2e40b486120da8d8a225d9ab505bc580", MD5Hash(filter->GetOutput()));
@@ -208,15 +210,15 @@ TEST_F(PasteFixture, ConstantPaste3_2)
 
   filter->SetDestinationIndex({ 11, 13, 17 });
   filter->SetSourceRegion(Utils::SourceSizeType{ 1, 1 });
-  filter->SetDestinationSkipAxes({ true, true, true });
+  filter->SetDestinationSkipAxes(SkipType({ true, true, true }));
   EXPECT_THROW(filter->VerifyPreconditions(), itk::ExceptionObject);
 
 
-  filter->SetDestinationSkipAxes({ false, true, true });
+  filter->SetDestinationSkipAxes(SkipType({ false, true, true }));
   EXPECT_THROW(filter->VerifyPreconditions(), itk::ExceptionObject);
 
 
-  filter->SetDestinationSkipAxes({ true, true, false });
+  filter->SetDestinationSkipAxes(SkipType({ true, true, false }));
   EXPECT_THROW(filter->VerifyPreconditions(), itk::ExceptionObject);
 }
 
@@ -276,6 +278,7 @@ TEST_F(PasteFixture, Paste3_2)
 {
   using Utils = FixtureUtilities<itk::Image<int, 3>, itk::Image<int, 2>>;
 
+  using SkipType = typename Utils::FilterType::InputSkipAxesArrayType;
   constexpr int constantValue = -53;
 
   auto filter = Utils::FilterType::New();
@@ -294,18 +297,18 @@ TEST_F(PasteFixture, Paste3_2)
   filter->SetDestinationIndex({ 11, 13, 17 });
   filter->SetSourceRegion(sourceImage->GetLargestPossibleRegion());
 
-  filter->SetDestinationSkipAxes({ true, false, false });
+  filter->SetDestinationSkipAxes(SkipType({ true, false, false }));
   filter->UpdateLargestPossibleRegion();
   EXPECT_EQ("753e433a43ab8fcf3d2ef0f8c78aef35", MD5Hash(filter->GetOutput()));
   EXPECT_EQ(0, filter->GetOutput()->GetPixel({ 12, 13, 17 }));
 
-  filter->SetDestinationSkipAxes({ false, true, false });
+  filter->SetDestinationSkipAxes(SkipType({ false, true, false }));
   filter->UpdateLargestPossibleRegion();
   EXPECT_EQ(0, filter->GetOutput()->GetPixel({ 11, 14, 17 }));
   EXPECT_EQ("44bd0a10b89c58fd306beee6148fdb4d", MD5Hash(filter->GetOutput()));
 
 
-  filter->SetDestinationSkipAxes({ false, false, true });
+  filter->SetDestinationSkipAxes(SkipType({ false, false, true }));
   filter->UpdateLargestPossibleRegion();
   EXPECT_EQ("ce630d54304b6eba8cd73ec9617d2cf4", MD5Hash(filter->GetOutput()));
   EXPECT_EQ(0, filter->GetOutput()->GetPixel({ 11, 13, 18 }));
