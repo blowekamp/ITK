@@ -192,7 +192,7 @@ public:
   {}
 
   void
-  VerifyPreconditions() const override;
+  VerifyPreconditions() ITKv5_CONST override;
 
   bool
   CanRunInPlace() const override;
