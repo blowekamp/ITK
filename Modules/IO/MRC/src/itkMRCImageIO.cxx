@@ -129,12 +129,16 @@ MRCImageIO::ReadImageInformation()
   // fixed types defined by header
   switch (header.mode)
   {
-    case MRCHeaderObject::MRCHEADER_MODE_UINT8:
+    case MRCHeaderObject::MRCHEADER_MODE_BYTE:
     {
-      // todo: the format is unclear weather this is signed or
-      // unsigned, it would be best to check the min and max in the
-      // header to see what makes since
-      this->SetComponentType(IOComponentEnum::UCHAR);
+      if (header.amin < 0)
+      {
+        this->SetComponentType(IOComponentEnum::CHAR);
+      }
+      else
+      {
+        this->SetComponentType(IOComponentEnum::UCHAR);
+      }
       this->SetNumberOfComponents(1);
       this->SetPixelType(IOPixelEnum::SCALAR);
       break;
@@ -392,9 +396,9 @@ MRCImageIO::UpdateHeaderFromImageIO()
   header.mode = -1;
   if (this->GetNumberOfComponents() == 1)
   {
-    if (this->GetComponentType() == IOComponentEnum::UCHAR)
+    if (this->GetComponentType() == IOComponentEnum::CHAR)
     {
-      header.mode = MRCHeaderObject::MRCHEADER_MODE_UINT8;
+      header.mode = MRCHeaderObject::MRCHEADER_MODE_BYTE;
     }
     else if (this->GetComponentType() == IOComponentEnum::SHORT)
     {
