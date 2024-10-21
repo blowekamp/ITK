@@ -412,12 +412,26 @@ public:
    *
    * If multiple CoordinateEnums are from the same axes then the Orientation value is INVALID.
    */
-  AnatomicalOrientation(CoordinateEnum primary, CoordinateEnum secondary, CoordinateEnum tertiary);
-
-  AnatomicalOrientation(PositiveEnum orientation)
-    : m_Value(orientation)
+  constexpr AnatomicalOrientation(CoordinateEnum primary, CoordinateEnum secondary, CoordinateEnum tertiary)
+    : m_Value(
+        SameOrientationAxes(primary, secondary) || SameOrientationAxes(primary, tertiary) ||
+            SameOrientationAxes(secondary, tertiary)
+          ? PositiveEnum::INVALID
+          : static_cast<PositiveEnum>(
+              (static_cast<uint32_t>(primary) << static_cast<uint8_t>(CoordinateMajornessTermsEnum::PrimaryMinor)) +
+              (static_cast<uint32_t>(secondary) << static_cast<uint8_t>(CoordinateMajornessTermsEnum::SecondaryMinor)) +
+              (static_cast<uint32_t>(tertiary) << static_cast<uint8_t>(CoordinateMajornessTermsEnum::TertiaryMinor))))
   {}
 
+
+  constexpr AnatomicalOrientation(PositiveEnum toOrientation)
+    : m_Value(toOrientation)
+  {}
+
+
+  constexpr AnatomicalOrientation(NegativeEnum fromOrientation)
+    : m_Value(PositiveEnum(uint32_t(fromOrientation)))
+  {}
 
 #ifndef ITK_FUTURE_LEGACY_REMOVE
   /** \brief Conversion from Legacy SpatialOrientation
@@ -511,10 +525,10 @@ public:
     return { GetPrimaryTerm(), GetSecondaryTerm(), GetTertiaryTerm() };
   }
 
-  static bool
+  static constexpr bool
   SameOrientationAxes(CoordinateEnum a, CoordinateEnum b)
   {
-    const unsigned int AxisField = 0xE; // b1110, mask the lowest bit
+    const uint8_t AxisField = ~1; // mask the lowest bit
     return (static_cast<uint8_t>(a) & AxisField) == (static_cast<uint8_t>(b) & AxisField);
   }
 
