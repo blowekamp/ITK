@@ -100,6 +100,22 @@ public:
     this->DisplayText(t);
   }
 
+  virtual void
+  DisplayWarningText(const char * msg, const char * file, unsigned int lineNumber, const LightObject * data)
+  {
+    if (::itk::Object::GetGlobalWarningDisplay())
+    {
+      std::ostringstream itkmsg;
+      itkmsg << "WARNING: In " << file << ", line " << lineNumber << '\n';
+      if (data)
+      {
+        itkmsg << data->GetNameOfClass() << " (" << data << "): ";
+      }
+      itkmsg << msg << "\n\n";
+      ::itk::OutputWindowDisplayWarningText(itkmsg.str().c_str());
+    }
+  }
+
   /** Send a string as a message to display.
    * The default implementation calls DisplayText() but subclasses
    * could present this message differently. */
@@ -130,6 +146,7 @@ protected:
   ~OutputWindow() override;
   void
   PrintSelf(std::ostream & os, Indent indent) const override;
+
 
 private:
   itkGetGlobalDeclarationMacro(OutputWindowGlobals, PimplGlobals);

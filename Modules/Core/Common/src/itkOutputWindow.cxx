@@ -68,6 +68,13 @@ OutputWindowDisplayWarningText(const char * message)
 }
 
 void
+OutputWindowDisplayWarningTest(const char * msg, const char * file, unsigned int lineNumber, const LightObject * data)
+{
+  OutputWindow::GetInstance()->DisplayWarningText(
+}
+
+
+void
 OutputWindowDisplayGenericOutputText(const char * message)
 {
   OutputWindow::GetInstance()->DisplayGenericOutputText(message);

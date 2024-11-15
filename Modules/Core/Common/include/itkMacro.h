@@ -453,6 +453,9 @@ destructor." (Visual Studio 2022/MSVC)
 
 namespace itk
 {
+
+class LightObject;
+
 /**
  * The following is used to output debug, warning, and error messages.
  * Use a global function which actually calls:
@@ -467,6 +470,9 @@ OutputWindowDisplayErrorText(const char *);
 
 extern ITKCommon_EXPORT void
 OutputWindowDisplayWarningText(const char *);
+
+extern ITKCommon_EXPORT void
+OutputWindowDisplayWarningTest(const char * msg, const char * file, unsigned int lineNumber, const LightObject * data);
 
 extern ITKCommon_EXPORT void
 OutputWindowDisplayGenericOutputText(const char *);
