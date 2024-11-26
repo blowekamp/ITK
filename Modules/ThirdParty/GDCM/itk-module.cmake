@@ -12,6 +12,7 @@ else()
   itk_module(ITKGDCM
     DEPENDS
       ITKZLIB
+      ITKJPEG
       ITKExpat
     DESCRIPTION
       "${DOCUMENTATION}"

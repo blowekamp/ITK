@@ -32,10 +32,18 @@ set(EXPAT_LIBRARY ${ITKExpat_LIBRARIES})
 # OpenJPEG:
 set(GDCM_USE_SYSTEM_OPENJPEG OFF CACHE INTERNAL "")
 set(GDCM_USE_OPENJPEG_V2 ON CACHE INTERNAL "")
+# JPEG:
+set(GDCM_USE_SYSTEM_LJPEG ON CACHE INTERNAL "")
+
 # ZLIB:
 set(GDCM_USE_SYSTEM_ZLIB ON CACHE INTERNAL "")
 set(ZLIB_INCLUDE_DIR ${ITKZLIB_INCLUDE_DIRS})
 set(ZLIB_LIBRARY ${ITKZLIB_LIBRARIES})
+
+# JPEG
+set(LJPEG_LIBRARIES ${ITKJPEG_LIBRARIES})
+set(LJPEG_INCLUDE_DIRS ${ITKJPEG_INCLUDE_DIRS})
+
 
 # Configure GDCM privately so its options do not appear to the user.
 set(GDCM_LEGACY_REMOVE OFF CACHE INTERNAL "Remove all legacy code completely.")
@@ -44,7 +52,7 @@ set(GDCM_SUPPORT_BROKEN_IMPLEMENTATION ON CACHE INTERNAL "Handle broken DICOM")
 set(GDCM_TEMP_DIRECTORY "${ITK_TEST_OUTPUT_DIR}" CACHE INTERNAL "Path to a valid temp directory")
 set(GDCM_USE_KAKADU OFF CACHE INTERNAL "Use kakadu lib, only turn it on if you know what you are doing.")
 set(GDCM_USE_PVRG OFF CACHE INTERNAL "Use pvrg lib, only turn it on if you know what you are doing.")
-set(GDCM_USE_SYSTEM_LJPEG OFF CACHE INTERNAL "Use system ljpeg (ijg lib)")
+set(GDCM_USE_SYSTEM_LJPEG ON CACHE INTERNAL "Use system ljpeg (ijg lib)")
 set(GDCM_USE_SYSTEM_OPENSSL OFF CACHE INTERNAL "Use system OpenSSL")
 set(GDCM_USE_SYSTEM_PODOFO OFF CACHE INTERNAL "Use system podofo (pdf)")
 set(GDCM_USE_SYSTEM_POPPLER OFF CACHE INTERNAL "Use system poppler (pdf)")

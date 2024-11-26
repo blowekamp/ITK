@@ -19,9 +19,11 @@
 
 #ifdef GDCM_USE_SYSTEM_LJPEG
 extern "C" {
-# include <ljpeg-62/8/jinclude.h>
-# include <ljpeg-62/8/jpeglib.h>
-# include <ljpeg-62/8/jerror.h>
+#include "itk_jpeg.h"
+#define SIZEOF(object)	((size_t) sizeof(object))
+//# include <ljpeg-62/8/jinclude.h>
+//# include <ljpeg-62/8/jpeglib.h>
+//# include <ljpeg-62/8/jerror.h>
 }
 #else
 extern "C" {
