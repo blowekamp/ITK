@@ -1476,6 +1476,8 @@ operator<<(std::ostream & out, const GDCMImageIOEnums::Compression value)
         return "itk::GDCMImageIOEnums::Compression::JPEGLS";
       case GDCMImageIOEnums::Compression::RLE:
         return "itk::GDCMImageIOEnums::Compression::RLE";
+      case GDCMImageIOEnums::Compression::HTJ2K:
+        return "itk::GDCMImageIOEnums::Compression::HTJ2K";
       default:
         return "INVALID VALUE FOR itk::GDCMImageIOEnums::Compression";
     }
