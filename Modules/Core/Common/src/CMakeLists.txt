@@ -255,7 +255,14 @@ if(UNIX)
   endif()
 endif()
 if(ITK_WRAP_PYTHON)
-  target_link_libraries(ITKCommon PRIVATE Python3::Module)
+  target_link_libraries(ITKCommon LINK_PUBLIC Python3::Module)
+
+  # Ensure all python symbols resolve for executables
+  target_link_libraries(
+    ITKCommon
+    INTERFACE
+      $<$<STREQUAL:$<TARGET_PROPERTY:TYPE>,EXECUTABLE>:Python3::Embed>
+  )
 endif()
 
 if(ITK_USE_TBB)
