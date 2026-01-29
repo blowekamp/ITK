@@ -166,13 +166,6 @@ OFF (default) means link to regular, dynamic CRT (/MD and /MDd)."
   )
   mark_as_advanced(ITK_MSVC_STATIC_RUNTIME_LIBRARY)
   set(ITK_MSVC_STATIC_CRT ${ITK_MSVC_STATIC_RUNTIME_LIBRARY})
-  if(ITK_MSVC_STATIC_RUNTIME_LIBRARY)
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    message(STATUS "Using MSVC's static CRT (/MT and /MTd)")
-  else()
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-    message(STATUS "Using MSVC's dynamic CRT (/MD and /MDd)")
-  endif()
 endif()
 
 include(ITKDownloadSetup)

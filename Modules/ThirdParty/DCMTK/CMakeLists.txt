@@ -299,6 +299,14 @@ endforeach()
   if(CMAKE_CROSSCOMPILING_EMULATOR)
     list(APPEND _cross_compiling_flags -DCMAKE_CROSSCOMPILING_EMULATOR:FILEPATH=${CMAKE_CROSSCOMPILING_EMULATOR})
   endif()
+  # Set MSVC runtime library for external project to match ITK's setting
+  if(MSVC)
+    if(ITK_MSVC_STATIC_RUNTIME_LIBRARY)
+      set(_DCMTK_MSVC_RUNTIME "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    else()
+      set(_DCMTK_MSVC_RUNTIME "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    endif()
+  endif()
   itk_download_attempt_check(${DCMTK_EPNAME})
   ExternalProject_Add(${DCMTK_EPNAME}
     GIT_REPOSITORY ${DCMTK_GIT_REPOSITORY}
@@ -310,7 +318,7 @@ endforeach()
    CMAKE_ARGS
     -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
     -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
-    -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING=${CMAKE_MSVC_RUNTIME_LIBRARY}
+    -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING=${_DCMTK_MSVC_RUNTIME}
     -DDCMTK_DEFAULT_DICT:STRING=builtin
     -DDCMTK_WITH_DOXYGEN:BOOL=OFF
     -DDCMTK_WITH_SNDFILE:BOOL=OFF

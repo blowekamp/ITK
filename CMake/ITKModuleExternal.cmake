@@ -145,21 +145,6 @@ option(BUILD_SHARED_LIBS "Build ITK with shared libraries." ${ITK_BUILD_SHARED})
 if(NOT CMAKE_POSITION_INDEPENDENT_CODE)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
-if(MSVC)
-  if(ITK_MSVC_STATIC_CRT)
-    message(
-      STATUS
-      "ITK is setting ${PROJECT_NAME}'s MSVC_RUNTIME_LIBRARY to static"
-    )
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-  else()
-    message(
-      STATUS
-      "ITK is setting ${PROJECT_NAME}'s MSVC_RUNTIME_LIBRARY to dynamic"
-    )
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
-  endif()
-endif()
 
 # Add the ITK_MODULES_DIR to the CMAKE_MODULE_PATH and then use the binary
 # directory for the project to write out new ones to.

@@ -242,6 +242,25 @@ endif()
 ### generating libraries
 itk_module_add_library(ITKCommon ${ITKCommon_SRCS})
 
+# Set MSVC runtime library on the target instead of using global CMAKE_MSVC_RUNTIME_LIBRARY
+if(MSVC)
+  if(ITK_MSVC_STATIC_RUNTIME_LIBRARY)
+    set_target_properties(
+      ITKCommon
+      PROPERTIES
+        MSVC_RUNTIME_LIBRARY
+          "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+    )
+  else()
+    set_target_properties(
+      ITKCommon
+      PROPERTIES
+        MSVC_RUNTIME_LIBRARY
+          "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+    )
+  endif()
+endif()
+
 target_link_libraries(ITKCommon LINK_PUBLIC itksys)
 
 if(UNIX)
