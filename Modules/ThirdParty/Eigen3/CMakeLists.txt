@@ -55,18 +55,7 @@ if(ITK_USE_SYSTEM_EIGEN)
   )
 else()
   set(ITKEigen3_LIBRARIES eigen_internal)
-  # Two include directories are required so both ITK's own
-  # ITK_EIGEN(X) macro convention <itkeigen/Eigen/X> and the upstream
-  # Eigen convention <Eigen/X> resolve.  ITK code rooted at
-  # ${ITKEigen3_SOURCE_DIR}/src uses the macro form; external
-  # consumers (proxTV, anything else that includes Eigen the
-  # standard way) need the parent of <Eigen/X>, which is
-  # ${ITKEigen3_SOURCE_DIR}/src/itkeigen.
-  set(
-    ITKEigen3_INCLUDE_DIRS
-    ${ITKEigen3_SOURCE_DIR}/src
-    ${ITKEigen3_SOURCE_DIR}/src/itkeigen
-  )
+  set(ITKEigen3_INCLUDE_DIRS ${ITKEigen3_SOURCE_DIR}/src)
 endif()
 
 # For the generated itk_eigen.h
